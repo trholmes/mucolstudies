@@ -1,6 +1,11 @@
 import glob
 import ROOT
 
+# Load some key libraries
+ROOT.gSystem.Load("libedm4hep")
+ROOT.gSystem.Load("libpodio")
+
+
 # Set up some options
 max_events = 1
 
@@ -17,9 +22,11 @@ print("Found %i events."%n_events)
 #t.Draw("MCParticle.PDG")
 #input("...")
 
+#t = ROOT.TFile(
+
 # Can successfully Draw() but running into issues when doing any kind of loop. Not sure of the cause.
 # Loop over events
-#for e in t: print("!")
+for e in t: print("!")
 
 '''
 for i, event in enumerate(t):
