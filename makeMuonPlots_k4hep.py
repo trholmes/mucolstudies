@@ -2,27 +2,30 @@ import glob
 import ROOT
 
 # Load some key libraries
-ROOT.gSystem.Load("libedm4hep")
-ROOT.gSystem.Load("libpodio")
-
+#ROOT.gSystem.Load("libedm4hep")
+#ROOT.gSystem.Load("libpodio")
 
 # Set up some options
 max_events = 1
 
 # Open the edm4hep files with ROOT
-fnames = glob.glob("/data/fmeloni/DataMuC_MuColl_v1/muonGun/edm4hep/*")
-#fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/photonGun_1000/reco_k4/*")
-t = ROOT.TChain("events")
-for f in fnames: t.Add(f)
+fnames = glob.glob("/data/fmeloni/DataMuC_MuColl_v1/muonGun/edm4hep/*.root")
+#fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/photonGun_1000/reco_k4/*.root")
+#t = ROOT.TChain("events")
+#for f in fnames: t.Add(f)
+
+# Trying opening with a TFile instead of a TChain in case this is the issue (it's not)
+print(fnames[0])
+f = ROOT.TFile.Open(fnames[0], "READ")
+t = f.Get("events")
 
 # Check how many events are in the file
 n_events = t.GetEntries()
 print("Found %i events."%n_events)
 
+# This works fine
 #t.Draw("MCParticle.PDG")
 #input("...")
-
-#t = ROOT.TFile(
 
 # Can successfully Draw() but running into issues when doing any kind of loop. Not sure of the cause.
 # Loop over events
@@ -34,5 +37,6 @@ for i, event in enumerate(t):
     #if max_events > 0 and i >= max_events: break
     #if i%100 == 0: print("Processing event %i."%i)
 '''
+
 
 

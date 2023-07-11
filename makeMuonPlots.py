@@ -6,7 +6,7 @@ import glob
 max_events = -1
 
 # Gather input files
-fnames = glob.glob("/data/fmeloni/DataMuC_MuColl_v1/muonGun/reco/*")
+fnames = glob.glob("/data/fmeloni/DataMuC_MuColl_v1/muonGun/reco/*.root")
 
 # Set up histograms
 hists = {}
