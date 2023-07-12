@@ -42,6 +42,7 @@ fnames = glob.glob("/collab/project/snowmass21/data/muonc/fmeloni/DataMuC_MuColl
 
 # Trying opening with RDataFrames
 rdf = ROOT.RDataFrame("events", fnames[0])
+
 #h = rdf.Histo1D("MCParticle.PDG")
 #h = rdf.Histo1D("AllTracks.trackerHits_begin")
 #h = rdf.Histo1D("AllTracks.getTrackerHits()")

@@ -52,7 +52,6 @@ for f in fnames:
                 hists["pfo_mu_pt"].Fill(pfo_tlv.Perp())
                 hists["pfo_mu_eta"].Fill(pfo_tlv.Eta())
                 hists["pfo_mu_phi"].Fill(pfo_tlv.Phi())
-        i+=1
 
         # Loop over the truth objects and fill histograms
         for mcp in mcpCollection:
@@ -69,9 +68,19 @@ for f in fnames:
                 hists["mcp_mu_phi"].Fill(mcp_tlv.Phi())
         i+=1
 
+print("\nSummary statistics:")
+print("Ran over %i events."%i)
+print("Found:")
+print("\t%i MCPs"%hists["mcp_pt"].GetEntries())
+print("\t%i mu MCPs"%hists["mcp_mu_pt"].GetEntries())
+print("\t%i PFOs"%hists["pfo_pt"].GetEntries())
+print("\t%i mu PFOs"%hists["pfo_mu_pt"].GetEntries())
+
 # Make your plots
 for i, h in enumerate(hists):
     c = ROOT.TCanvas("c%i"%i, "c%i"%i)
     hists[h].Draw()
+    hists[h].GetXaxis().SetTitle(h)
+    hists[h].GetYaxis().SetTitle("Entries")
     c.SaveAs("plots/%s.png"%h)
 
