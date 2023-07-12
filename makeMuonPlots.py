@@ -11,6 +11,7 @@ max_events = -1
 
 # Gather input files
 fnames = glob.glob("/data/fmeloni/DataMuC_MuColl_v1/muonGun/reco/*.slcio")
+#fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/gen_muonGun/recoBIB/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/muonGun_1000/recoBIB/*.slcio")
 print("Found %i files."%len(fnames))
 
@@ -34,6 +35,8 @@ dvariables["deta"] =    {"nbins": 100, "xmin": -0.001, "xmax": 0.001}
 for obj in ["d_mu"]:
     for var in dvariables:
         hists[obj+"_"+var] = ROOT.TH1F(obj+"_"+var, obj+"_"+var, dvariables[var]["nbins"], dvariables[var]["xmin"], dvariables[var]["xmax"])
+
+h_2d_relpt = ROOT.TH2F("h_2d_relpt", "h_2d_relpt", 20, 0, 1000, 500, -0.5, 0.5)
 
 # Loop over events
 i = 0
@@ -96,6 +99,7 @@ for f in fnames:
                     hists["d_mu_drelpt"].Fill((my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
                     hists["d_mu_deta"].Fill(my_pfo_mu.Eta() - mcp_tlv.Eta())
                     hists["d_mu_dphi"].Fill(my_pfo_mu.Phi() - mcp_tlv.Phi())
+                    h_2d_relpt.Fill(mcp_tlv.Perp(), (my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
 
         if n_pfo_mu > 1: print(n_pfo_mu)
 
@@ -145,3 +149,23 @@ for v in variables:
     eff.SetTitle(";%s;Efficiency"%v)
     c.SaveAs("plots/eff_%s.png"%v)
 
+c = ROOT.TCanvas("crelpt2d", "crelpt2d")
+h_2d_relpt.Draw("colz")
+h_2d_relpt.GetXaxis().SetTitle("pt")
+h_2d_relpt.GetYaxis().SetTitle("drelpt")
+c.SaveAs("plots/d_mu_relpt_2d.png")
+
+c = ROOT.TCanvas("crelpt2dprof", "crelpt2dprof")
+h_prof = h_2d_relpt.ProfileX()
+h_prof.GetXaxis().SetTitle("pt")
+h_prof.GetYaxis().SetTitle("drelpt")
+h_prof.Draw()
+c.SaveAs("plots/d_mu_relpt_prof.png")
+
+c = ROOT.TCanvas("crelpt2dres", "crelpt2dres")
+h_res = h
+h_prof = h_2d_relpt.ProfileX()
+h_prof.GetXaxis().SetTitle("pt")
+h_prof.GetYaxis().SetTitle("drelpt")
+h_prof.Draw()
+c.SaveAs("plots/d_mu_relpt_res.png")
