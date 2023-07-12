@@ -17,13 +17,23 @@ print("Found %i files."%len(fnames))
 # Set up histograms
 # This is an algorithmic way of making a bunch of histograms and storing them in a dictionary
 variables = {}
-variables["pt"] =  {"nbins": 100, "xmin": 0, "xmax": 2000}
-variables["eta"] = {"nbins": 100, "xmin": -3, "xmax": 3}
-variables["phi"] = {"nbins": 100, "xmin": -3.5, "xmax": 3.5}
+variables["pt"] =  {"nbins": 20, "xmin": 0, "xmax": 2000}
+variables["eta"] = {"nbins": 20, "xmin": -3, "xmax": 3}
+variables["phi"] = {"nbins": 20, "xmin": -3.5, "xmax": 3.5}
+variables["n"] = {"nbins": 20, "xmin": 0, "xmax": 20}
 hists = {}
-for obj in ["pfo", "pfo_mu", "mcp", "mcp_mu"]:
+for obj in ["pfo", "pfo_mu", "mcp", "mcp_mu", "mcp_mu_match"]:
     for var in variables:
         hists[obj+"_"+var] = ROOT.TH1F(obj+"_"+var, obj+"_"+var, variables[var]["nbins"], variables[var]["xmin"], variables[var]["xmax"])
+
+dvariables = {}
+dvariables["dpt"] =     {"nbins": 100, "xmin": -500, "xmax": 500}
+dvariables["drelpt"] =  {"nbins": 100, "xmin": -0.5, "xmax": 0.5}
+dvariables["dphi"] =    {"nbins": 100, "xmin": -0.001, "xmax": 0.001}
+dvariables["deta"] =    {"nbins": 100, "xmin": -0.001, "xmax": 0.001}
+for obj in ["d_mu"]:
+    for var in dvariables:
+        hists[obj+"_"+var] = ROOT.TH1F(obj+"_"+var, obj+"_"+var, dvariables[var]["nbins"], dvariables[var]["xmin"], dvariables[var]["xmax"])
 
 # Loop over events
 i = 0
@@ -39,6 +49,12 @@ for f in fnames:
         mcpCollection = event.getCollection("MCParticle")
         pfoCollection = event.getCollection("PandoraPFOs")
 
+        # Make counter variables
+        n_mcp_mu = 0
+        n_pfo_mu = 0
+        has_pfo_mu = False
+        my_pfo_mu = 0
+
         # Loop over the reconstructed objects and fill histograms
         for pfo in pfoCollection:
             pfo_p = pfo.getMomentum()
@@ -52,6 +68,9 @@ for f in fnames:
                 hists["pfo_mu_pt"].Fill(pfo_tlv.Perp())
                 hists["pfo_mu_eta"].Fill(pfo_tlv.Eta())
                 hists["pfo_mu_phi"].Fill(pfo_tlv.Phi())
+                n_pfo_mu += 1
+                has_pfo_mu = True
+                my_pfo_mu = pfo_tlv
 
         # Loop over the truth objects and fill histograms
         for mcp in mcpCollection:
@@ -62,10 +81,30 @@ for f in fnames:
             hists["mcp_eta"].Fill(mcp_tlv.Eta())
             hists["mcp_phi"].Fill(mcp_tlv.Phi())
 
-            if abs(mcp.getPDG())==13:
+            if abs(mcp.getPDG())==13 and mcp.getGeneratorStatus()==1:
                 hists["mcp_mu_pt"].Fill(mcp_tlv.Perp())
                 hists["mcp_mu_eta"].Fill(mcp_tlv.Eta())
                 hists["mcp_mu_phi"].Fill(mcp_tlv.Phi())
+                n_mcp_mu += 1
+
+                if has_pfo_mu:
+                    hists["mcp_mu_match_pt"].Fill(mcp_tlv.Perp())
+                    hists["mcp_mu_match_eta"].Fill(mcp_tlv.Eta())
+                    hists["mcp_mu_match_phi"].Fill(mcp_tlv.Phi())
+
+                    hists["d_mu_dpt"].Fill(my_pfo_mu.Perp() - mcp_tlv.Perp())
+                    hists["d_mu_drelpt"].Fill((my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
+                    hists["d_mu_deta"].Fill(my_pfo_mu.Eta() - mcp_tlv.Eta())
+                    hists["d_mu_dphi"].Fill(my_pfo_mu.Phi() - mcp_tlv.Phi())
+
+        if n_pfo_mu > 1: print(n_pfo_mu)
+
+        hists["mcp_n"].Fill(len(mcpCollection))
+        hists["pfo_n"].Fill(len(pfoCollection))
+        hists["mcp_mu_n"].Fill(n_mcp_mu)
+        hists["pfo_mu_n"].Fill(n_pfo_mu)
+        hists["mcp_mu_match_n"].Fill(n_pfo_mu)
+
         i+=1
 
 print("\nSummary statistics:")
@@ -82,5 +121,27 @@ for i, h in enumerate(hists):
     hists[h].Draw()
     hists[h].GetXaxis().SetTitle(h)
     hists[h].GetYaxis().SetTitle("Entries")
+    if h.startswith("d_mu"):
+        f = ROOT.TF1("f%i"%i, "gaus")
+        f.SetLineColor(ROOT.kRed)
+        hists[h].Fit("f%i"%i)
+        c.SetLogy()
+        latex = ROOT.TLatex()
+        p = f.GetParameters()
+        latex.DrawLatexNDC(.64, .85, "Mean: %f"%p[1])
+        latex.DrawLatexNDC(.64, .78, "Sigma: %f"%p[2])
     c.SaveAs("plots/%s.png"%h)
+
+# In these files, there are at most 1 PFO mu, so matching isn't needed
+for v in variables:
+    if v=="n": continue
+    c = ROOT.TCanvas("c%s"%v, "c%s"%v)
+    eff = ROOT.TEfficiency(hists["mcp_mu_match_"+v], hists["mcp_mu_"+v])
+    eff.Draw("ape")
+    ROOT.gPad.Update()
+    eff.SetLineWidth(2)
+    eff.GetPaintedGraph().SetMinimum(0)
+    eff.GetPaintedGraph().SetMaximum(1)
+    eff.SetTitle(";%s;Efficiency"%v)
+    c.SaveAs("plots/eff_%s.png"%v)
 
