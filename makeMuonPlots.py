@@ -2,11 +2,17 @@ import pyLCIO
 import ROOT
 import glob
 
+# Prevent ROOT from drawing while you're running -- good for slow remote servers
+# Instead, save files and view them with an sftp client like Fetch (feel free to ask me for my UTK license)
+ROOT.gROOT.SetBatch()
+
 # Set up some options
 max_events = -1
 
 # Gather input files
-fnames = glob.glob("/data/fmeloni/DataMuC_MuColl_v1/muonGun/reco/*.root")
+fnames = glob.glob("/data/fmeloni/DataMuC_MuColl_v1/muonGun/reco/*.slcio")
+#fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/muonGun_1000/recoBIB/*.slcio")
+print("Found %i files."%len(fnames))
 
 # Set up histograms
 hists = {}
