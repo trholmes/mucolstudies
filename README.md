@@ -1,5 +1,5 @@
 # mucolstudies
-Collection of scripts for performing mucol studies. 
+Collection of scripts for performing Muon Collider studies. 
 
 For a very simple version of reading an slcio file, see `makeMuonPlots_simple.py`. 
 
