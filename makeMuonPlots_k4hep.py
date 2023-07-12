@@ -10,6 +10,8 @@ import glob
 import ROOT
 from ROOT import edm4hep
 from podio.root_io import Reader
+#from ROOT.edm4hep import utils
+#USE_ENERGY = utils.detail.UseEnergyTag()
 #from edm4hep_path import get_edm4hep_path
 
 
@@ -27,9 +29,9 @@ fnames = glob.glob("/collab/project/snowmass21/data/muonc/fmeloni/DataMuC_MuColl
 #t = ROOT.TChain("events")
 #for f in fnames: t.Add(f)
 
-reader = Reader(fnames)
-for i, event in enumerate(reader.get('events')):
-    print(i)
+#reader = Reader(fnames)
+#for i, event in enumerate(reader.get('events')):
+#    print(i)
 
 
 
@@ -39,10 +41,12 @@ for i, event in enumerate(reader.get('events')):
 #t = f.Get("events")
 
 # Trying opening with RDataFrames
-#rdf = ROOT.RDataFrame("events", fnames[0])
+rdf = ROOT.RDataFrame("events", fnames[0])
 #h = rdf.Histo1D("MCParticle.PDG")
-#h.Draw()
-#input("...")
+#h = rdf.Histo1D("AllTracks.trackerHits_begin")
+#h = rdf.Histo1D("AllTracks.getTrackerHits()")
+h.Draw()
+input("...")
 
 # Check how many events are in the file
 #n_events = t.GetEntries()
