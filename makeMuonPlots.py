@@ -2,6 +2,9 @@ import pyLCIO
 import ROOT
 import glob
 
+
+
+# ############## SETUP #############################
 # Prevent ROOT from drawing while you're running -- good for slow remote servers
 # Instead, save files and view them with an sftp client like Fetch (feel free to ask me for my UTK license)
 ROOT.gROOT.SetBatch()
@@ -10,11 +13,15 @@ ROOT.gROOT.SetBatch()
 max_events = -1
 
 # Gather input files
+# Note: these are using the path convention from the singularity command in the MuCol tutorial (see README)
 fnames = glob.glob("/data/fmeloni/DataMuC_MuColl_v1/muonGun/reco/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/gen_muonGun/recoBIB/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/muonGun_1000/recoBIB/*.slcio")
 print("Found %i files."%len(fnames))
 
+
+
+# ############## CREATE EMPTY HISTOGRAM OBJECTS  #############################
 # Set up histograms
 # This is an algorithmic way of making a bunch of histograms and storing them in a dictionary
 variables = {}
@@ -27,6 +34,8 @@ for obj in ["pfo", "pfo_mu", "mcp", "mcp_mu", "mcp_mu_match"]:
     for var in variables:
         hists[obj+"_"+var] = ROOT.TH1F(obj+"_"+var, obj+"_"+var, variables[var]["nbins"], variables[var]["xmin"], variables[var]["xmax"])
 
+# Making a separate set of binning conventions for plots showing resolutions
+# these plots will all be filled with the difference between a pfo and a mcp object value
 dvariables = {}
 dvariables["dpt"] =     {"nbins": 100, "xmin": -500, "xmax": 500}
 dvariables["drelpt"] =  {"nbins": 100, "xmin": -0.5, "xmax": 0.5}
@@ -36,8 +45,14 @@ for obj in ["d_mu"]:
     for var in dvariables:
         hists[obj+"_"+var] = ROOT.TH1F(obj+"_"+var, obj+"_"+var, dvariables[var]["nbins"], dvariables[var]["xmin"], dvariables[var]["xmax"])
 
+# Finally making one 2D histogram non-algorithmically; this is what I'll use for a
+# pT resolution vs. pT plot.
 h_2d_relpt = ROOT.TH2F("h_2d_relpt", "h_2d_relpt", 20, 0, 1000, 500, -0.5, 0.5)
 
+
+
+
+# ############## LOOP OVER EVENTS AND FILL HISTOGRAMS  #############################
 # Loop over events
 i = 0
 for f in fnames:
@@ -73,7 +88,7 @@ for f in fnames:
                 hists["pfo_mu_phi"].Fill(pfo_tlv.Phi())
                 n_pfo_mu += 1
                 has_pfo_mu = True
-                my_pfo_mu = pfo_tlv
+                my_pfo_mu = pfo_tlv     # Storing this to use for matching in the next loop
 
         # Loop over the truth objects and fill histograms
         for mcp in mcpCollection:
@@ -90,6 +105,9 @@ for f in fnames:
                 hists["mcp_mu_phi"].Fill(mcp_tlv.Phi())
                 n_mcp_mu += 1
 
+                # For events in which a PFO mu was reconstructed, fill histograms that will
+                # be used for efficiency. Both numerator and denominator must be filled with truth values!
+                # Also fill resolution histograms
                 if has_pfo_mu:
                     hists["mcp_mu_match_pt"].Fill(mcp_tlv.Perp())
                     hists["mcp_mu_match_eta"].Fill(mcp_tlv.Eta())
@@ -101,8 +119,10 @@ for f in fnames:
                     hists["d_mu_dphi"].Fill(my_pfo_mu.Phi() - mcp_tlv.Phi())
                     h_2d_relpt.Fill(mcp_tlv.Perp(), (my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
 
+        # This is here to check that we never reconstruct multiple muons
+        # If we did, we'd have to match the correct muon to the MCP object to do eff/res plots
+        # But since we don't, we can skip that step
         if n_pfo_mu > 1: print(n_pfo_mu)
-
         hists["mcp_n"].Fill(len(mcpCollection))
         hists["pfo_n"].Fill(len(pfoCollection))
         hists["mcp_mu_n"].Fill(n_mcp_mu)
@@ -111,6 +131,9 @@ for f in fnames:
 
         i+=1
 
+
+
+# ############## MANIPULATE, PRETTIFY, AND SAVE HISTOGRAMS #############################
 print("\nSummary statistics:")
 print("Ran over %i events."%i)
 print("Found:")
@@ -119,12 +142,14 @@ print("\t%i mu MCPs"%hists["mcp_mu_pt"].GetEntries())
 print("\t%i PFOs"%hists["pfo_pt"].GetEntries())
 print("\t%i mu PFOs"%hists["pfo_mu_pt"].GetEntries())
 
-# Make your plots
+# Draw all the 1D histograms you filled
 for i, h in enumerate(hists):
     c = ROOT.TCanvas("c%i"%i, "c%i"%i)
     hists[h].Draw()
     hists[h].GetXaxis().SetTitle(h)
     hists[h].GetYaxis().SetTitle("Entries")
+
+    # For resolution plots, fit them and get the mean and sigma
     if h.startswith("d_mu"):
         f = ROOT.TF1("f%i"%i, "gaus")
         f.SetLineColor(ROOT.kRed)
@@ -136,6 +161,7 @@ for i, h in enumerate(hists):
         latex.DrawLatexNDC(.64, .78, "Sigma: %f"%p[2])
     c.SaveAs("plots/%s.png"%h)
 
+# Make efficiency plots
 # In these files, there are at most 1 PFO mu, so matching isn't needed
 for v in variables:
     if v=="n": continue
@@ -149,6 +175,7 @@ for v in variables:
     eff.SetTitle(";%s;Efficiency"%v)
     c.SaveAs("plots/eff_%s.png"%v)
 
+# Make 2D plot and a TProfile to understand pT resolution v pT
 c = ROOT.TCanvas("crelpt2d", "crelpt2d")
 h_2d_relpt.Draw("colz")
 h_2d_relpt.GetXaxis().SetTitle("pt")
@@ -161,11 +188,3 @@ h_prof.GetXaxis().SetTitle("pt")
 h_prof.GetYaxis().SetTitle("drelpt")
 h_prof.Draw()
 c.SaveAs("plots/d_mu_relpt_prof.png")
-
-#c = ROOT.TCanvas("crelpt2dres", "crelpt2dres")
-#h_res = h
-#h_prof = h_2d_relpt.ProfileX()
-#h_prof.GetXaxis().SetTitle("pt")
-#h_prof.GetYaxis().SetTitle("drelpt")
-#h_prof.Draw()
-#c.SaveAs("plots/d_mu_relpt_res.png")

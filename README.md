@@ -7,7 +7,7 @@ and then from inside the image, run:
 
 `source /opt/ilcsoft/muonc/init_ilcsoft.sh`
 
-(FYI, putting these two in one shell script and sourcing it will not work; it won't execute the second command until you exit the singularity. You can also update to a newer release, which you can find [here](https://confluence.infn.it/display/muoncollider/Software).)
+(FYI, putting these two in one shell script and sourcing it will not work; it won't execute the second command until you exit the singularity. You can also update to a newer release, which you can find [here](https://confluence.infn.it/display/muoncollider/Software), but I ran into trouble running with 1.7 with my current setup.)
 
 For a very simple version of reading an slcio file, see `makeMuonPlots_simple.py`. 
 
