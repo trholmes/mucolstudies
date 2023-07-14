@@ -13,6 +13,8 @@ For a very simple version of reading an slcio file, see `makeMuonPlots_simple.py
 
 For a slightly more advanced version that handles making multiple histograms more elegantly, see `makeMuonPlots.py`. It may be helpful to look at these side-by-side if you're trying to learn what's going on here.
 
+Both of these scripts will put plots in a `plots/` directory - make one if you don't have it already or it will crash.
+
 Don't look at `makeMuonPlots_k4hep.py` -- it doesn't work yet. I currently can only use RDataFrame to read these files; anything else results in a segfault. Looking into it!
 
 For the SLCIO files, to get a list of the colletions you can access, run `anajob <filename>` on one of your files.
