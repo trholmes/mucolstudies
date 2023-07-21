@@ -1,8 +1,7 @@
 import pyLCIO
 import ROOT
 import glob
-
-
+import ctypes
 
 # ############## SETUP #############################
 # Prevent ROOT from drawing while you're running -- good for slow remote servers
@@ -160,6 +159,21 @@ for i, h in enumerate(hists):
         latex.DrawLatexNDC(.64, .85, "Mean: %f"%p[1])
         latex.DrawLatexNDC(.64, .78, "Sigma: %f"%p[2])
     c.SaveAs("plots/%s.png"%h)
+
+# Test out IntegralAndError
+# Make plot that's fraction of mcp mu above a given pt cut
+h = hists["mcp_mu_pt"]
+hint = h.Clone("mcp_mu_pt_thresh")
+for ibin in range(1, h.GetNbinsX()+1):
+    bin_err = ctypes.c_double(0)
+    bin_val = h.IntegralAndError(ibin, h.GetNbinsX()+1, bin_err)
+    hint.SetBinContent(ibin, bin_val)
+    hint.SetBinError(ibin, bin_err)
+c = ROOT.TCanvas("cint", "cint")
+hint.Draw()
+hint.GetXaxis().SetTitle("p_T threshold [GeV]")
+hint.GetYaxis().SetTitle("Number of true muons over threshold")
+c.SaveAs("plots/mcp_mu_pt_thresh.png")
 
 # Make efficiency plots
 # In these files, there are at most 1 PFO mu, so matching isn't needed
