@@ -165,7 +165,7 @@ for i, h in enumerate(hists):
 h = hists["mcp_mu_pt"]
 hint = h.Clone("mcp_mu_pt_thresh")
 for ibin in range(1, h.GetNbinsX()+1):
-    bin_err = ctypes.c_double(0)
+    bin_err = ctypes.c_double(0)        # Need to store a Double type to pass by reference in next line
     bin_val = h.IntegralAndError(ibin, h.GetNbinsX()+1, bin_err)
     hint.SetBinContent(ibin, bin_val)
     hint.SetBinError(ibin, bin_err)
