@@ -15,7 +15,7 @@ For a slightly more advanced version that handles making multiple histograms mor
 
 Both of these scripts will put plots in a `plots/` directory - make one if you don't have it already or it will crash.
 
-Don't look at `makeMuonPlots_k4hep.py` -- it doesn't work yet. I currently can only use RDataFrame to read these files; anything else results in a segfault. Looking into it!
+To work with key4hep files, look at `makeMuonPlots_k4hep.py`. This is just a skeleton file; it doesn't show you as much as even the `makeMuonPlots_simple.py` file when it comes to e.g. plotting, but it does give a simple recipe for how to open and loop over these files with the key4hep syntax. Be sure to read the comments at the top of this file for specific instructions on how to run the docker image for this.
 
 For the SLCIO files, to get a list of the colletions you can access, run `anajob <filename>` on one of your files.
 Use the `COLLECTION NAME` to access them. 
