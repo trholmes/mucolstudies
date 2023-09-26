@@ -115,7 +115,7 @@ for f in fnames:
                     hists["d_mu_dpt"].Fill(my_pfo_mu.Perp() - mcp_tlv.Perp())
                     hists["d_mu_drelpt"].Fill((my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
                     hists["d_mu_deta"].Fill(my_pfo_mu.Eta() - mcp_tlv.Eta())
-                    hists["d_mu_dphi"].Fill(my_pfo_mu.Phi() - mcp_tlv.Phi())
+                    hists["d_mu_dphi"].Fill(my_pfo_mu.DeltaPhi(mcp_tlv))
                     h_2d_relpt.Fill(mcp_tlv.Perp(), (my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
 
         # This is here to check that we never reconstruct multiple muons
