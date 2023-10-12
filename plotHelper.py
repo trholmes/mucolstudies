@@ -2,7 +2,7 @@
 print("Loading in plotHelper.py")
 
 variables = {"obj": {}, "evt": {}}
-variables["obj"]["pt"] =  {"nbins": 20, "xmin": 0,     "xmax": 2000,    "accessor": ".Perp()",  "label": "p_{T} [GeV]"}
+variables["obj"]["pt"] =  {"nbins": 30, "xmin": 0,     "xmax": 3000,    "accessor": ".Perp()",  "label": "p_{T} [GeV]"}
 variables["obj"]["eta"] = {"nbins": 20, "xmin": -3,    "xmax": 3,       "accessor": ".Eta()",   "label": "#eta"}
 variables["obj"]["phi"] = {"nbins": 20, "xmin": -3.5,  "xmax": 3.5,     "accessor": ".Phi()",   "label": "#phi"}
 variables["evt"]["n"] =   {"nbins": 20, "xmin": 0,     "xmax": 20,      "accessor": "",         "label": "number per event"}
@@ -18,7 +18,8 @@ def getTLV(obj):
     obj_p = obj.getMomentum()
     obj_e = obj.getEnergy()
     obj_tlv = ROOT.TLorentzVector()
-    obj_tlv.SetPxPyPzE(obj_p.x, obj_p.y, obj_p.z, obj_e)
+    #obj_tlv.SetPxPyPzE(obj_p.x, obj_p.y, obj_p.z, obj_e)
+    obj_tlv.SetPxPyPzE(obj_p[0], obj_p[1], obj_p[2], obj_e)
     return obj_tlv
 
 def fillObjHists(hists, objtype, obj):
@@ -87,3 +88,51 @@ def plotHistograms(h_map, save_name, xlabel="", ylabel="", interactive=False, lo
     can.SaveAs(save_name)
     return
 
+def plotEfficiencies(eff_map, save_name, xlabel="", ylabel="", xrange=""):
+
+    can = ROOT.TCanvas("can", "can")
+    if len(eff_map)<1:
+        return
+
+    colorHists(eff_map.values())
+
+    for i, k in enumerate(eff_map):
+        if i==0:
+            if not xrange=="":
+                background = ROOT.TH1D("bkg", "bkg", 1, x_range[0], x_range[1])
+                background.SetLineWidth(0)
+                background.SetTitle(";%s;%s"%(xlabel,ylabel))
+                background.SetMinimum(0)
+                background.SetMaximum(1)
+                background.Draw()
+                eff_map[k].Draw("pe same")
+            else:
+                eff_map[k].Draw("ape")
+            eff_map[k].SetTitle(";%s;%s"%(xlabel,ylabel))
+            ROOT.gPad.Update()
+
+            eff_map[k].GetPaintedGraph().GetXaxis().SetTitle(xlabel)
+            eff_map[k].GetPaintedGraph().GetYaxis().SetTitle(ylabel)
+            eff_map[k].GetPaintedGraph().SetMinimum(0)
+            eff_map[k].GetPaintedGraph().SetMaximum(1)
+            if not xrange=="":
+                print("Updating axis range", xrange)
+                #eff_map[k].GetPaintedGraph().GetXaxis().SetRange(x_range[0], x_range[1])
+                #eff_map[k].GetPaintedGraph().GetXaxis().SetMin(x_range[0])
+                #eff_map[k].GetPaintedGraph().GetXaxis().SetMax(x_range[1])
+                eff_map[k].Draw("pe same")
+            else:
+                eff_map[k].Draw("ape")
+            ROOT.gPad.Update()
+
+        else: eff_map[k].Draw("pe same")
+
+        ROOT.gPad.Update()
+
+    leg = ROOT.TLegend(.66, .24, .9, .38)
+    for k in eff_map:
+        leg.AddEntry(eff_map[k], k, "p")
+    leg.Draw()
+
+    can.SaveAs(save_name)
+    return

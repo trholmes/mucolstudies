@@ -8,8 +8,11 @@
 
 import glob
 import ROOT
-from ROOT import edm4hep
-from podio.root_io import Reader
+
+#from ROOT import edm4hep
+#from podio.root_io import Reader
+import pyLCIO
+
 exec(open("./plotHelper.py").read())
 ROOT.gROOT.SetBatch()
 
@@ -17,11 +20,14 @@ ROOT.gROOT.SetBatch()
 max_events = -1
 
 # Open the edm4hep files with ROOT
-samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/k4reco/electronGun*")
+#samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/k4reco/electronGun*")
+#samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*")
+samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/recoBIB/electronGun*")
 files = {}
 for s in samples:
     sname = s.split("/")[-1]
-    files[sname] = glob.glob(f"{s}/*.root")
+    #files[sname] = glob.glob(f"{s}/*.root")
+    files[sname] = glob.glob(f"{s}/*.slcio")
 
 # Set up histograms
 hists = {}
@@ -38,6 +44,10 @@ def isMatched(tlv1, tlv2):
         return True
     return False
 
+# Create a reader object to use for the rest of the time
+reader = pyLCIO.IOIMPL.LCFactory.getInstance().createLCReader()
+reader.setReadCollectionNames(["MCParticle", "PandoraPFOs", "SiTracks_Refitted"])
+
 # Loop over the different samples
 for s in files:
     print("Working on sample", s)
@@ -47,14 +57,16 @@ for s in files:
     for f in files[s]:
         if max_events > 0 and i >= max_events: break
 
-        reader = Reader(f)
-        reader.collections = ["MCParticle", "PandoraPFOs"]#, "SiTracks_Refitted"]
-        print(type(reader))
-        print(dir(reader))
+        #reader = Reader(f)
+        #reader.collections = ["MCParticle", "PandoraPFOs"]#, "SiTracks_Refitted"]
+        #print(type(reader))
+        #print(dir(reader))
 
+        reader.open(f)
 
         # Loop over events in each file
-        for event in reader.get('events'):
+        #for event in reader.get('events'):
+        for event in reader:
             if max_events > 0 and i >= max_events: break
             if i%100 == 0: print("\tProcessing event:", i)
 
@@ -67,10 +79,13 @@ for s in files:
             my_mcp_el = None
 
             # Get the collections we care about
-            mcps = event.get("MCParticle")
-            pfos = event.get("PandoraPFOs")
-            trks = event.get("SiTracks_Refitted")
+            #mcps = event.get("MCParticle")
+            #pfos = event.get("PandoraPFOs")
+            #trks = event.get("SiTracks_Refitted")
             #lnks = event.get("MCParticle_SiTracks_Refitted")
+            mcps = event.getCollection("MCParticle")
+            pfos = event.getCollection("PandoraPFOs")
+            trks = event.getCollection("SiTracks_Refitted")
 
             ######## Loop over MCPs
 
@@ -114,8 +129,12 @@ for s in files:
 
             #for trk in trks:
 
+            #del(mcps, pfos, trks)
+
             # Iterate counter
             i += 1
+
+        reader.close()
 
 # Draw all the 1D histograms you filled
 for i, h in enumerate(hists[s]):
