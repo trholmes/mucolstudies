@@ -17,15 +17,19 @@ exec(open("./plotHelper.py").read())
 ROOT.gROOT.SetBatch()
 
 # Set up some options
-max_events = -1
+max_events = 103
 
 # Open the edm4hep files with ROOT
 #samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/k4reco/electronGun*")
-#samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*")
-samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/recoBIB/electronGun*")
+samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*")
+#samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/recoBIB/electronGun*")
 files = {}
+#slices = ["250_1000"]
+slices = ["0_50", "50_250", "250_1000", "1000_5000"]
+for s in slices: files[f"electronGun_pT_{s}"] = []
 for s in samples:
     sname = s.split("/")[-1]
+    if sname not in files: continue
     #files[sname] = glob.glob(f"{s}/*.root")
     files[sname] = glob.glob(f"{s}/*.slcio")
 
@@ -33,10 +37,25 @@ for s in samples:
 hists = {}
 for s in files:
     hists[s] = {}
-    for obj in ["pfo", "pfo_el", "mcp", "mcp_el", "mcp_el_match"]:
+    for obj in ["pfo", "pfo_el", "mcp", "mcp_el", "mcp_el_match", "trk", "trk_el_match"]:
         for vtype in ["obj", "evt"]:
             for var in variables[vtype]:
                 hists[s][obj+"_"+var] = ROOT.TH1F(s+"_"+obj+"_"+var, s, variables[vtype][var]["nbins"], variables[vtype][var]["xmin"], variables[vtype][var]["xmax"])
+
+hists2d = {}
+for s in files:
+    hists2d[s] = {}
+    hists2d[s]["trk_eta_v_trk_pt"] = ROOT.TH2F(f"trk_eta_v_trk_pt_{s}", f"trk_eta_v_trk_pt_{s}", 30,-3,3,30,0,3000)
+    hists2d[s]["trk_eta_v_trk_phi"] = ROOT.TH2F(f"trk_eta_v_trk_phi_{s}", f"trk_eta_v_trk_phi_{s}", 30,-3,3,30,-3,3)
+    hists2d[s]["trk_eta_v_trk_n"] = ROOT.TH2F(f"trk_eta_v_trk_n_{s}", f"trk_eta_v_trk_n_{s}", 30,-3,3,20,0,20)
+    hists2d[s]["trk_eta_v_mcp_eta"] = ROOT.TH2F(f"trk_eta_v_mcp_eta_{s}", f"trk_eta_v_mcp_eta_{s}", 30,-3,3,30,-3,3)
+    hists2d[s]["trk_eta_v_mcp_pt"] = ROOT.TH2F(f"trk_eta_v_mcp_pt_{s}", f"trk_eta_v_mcp_pt_{s}", 30,-3,3,30,0,3000)
+    hists2d[s]["trk_eta_v_mcp_phi"] = ROOT.TH2F(f"trk_eta_v_mcp_phi_{s}", f"trk_eta_v_mcp_phi_{s}", 30,-3,3,30,-3,3)
+    hists2d[s]["trk_pt_v_mcp_pt"] = ROOT.TH2F(f"trk_pt_v_mcp_pt_{s}", f"trk_pt_v_mcp_pt_{s}", 30,0,3000,30,0,3000)
+    hists2d[s]["pfo_pt_v_mcp_pt"] = ROOT.TH2F(f"pfo_pt_v_mcp_pt_{s}", f"pfo_pt_v_mcp_pt_{s}", 30,0,3000,30,0,3000)
+    hists2d[s]["mcp_E_v_mcp_p"] = ROOT.TH2F(f"mcp_E_v_mcp_p_{s}", f"mcp_E_v_mcp_p_{s}", 30,0,1000,30,0,1000)
+
+
 
 # Perform matching between two TLVs
 def isMatched(tlv1, tlv2):
@@ -71,6 +90,8 @@ for s in files:
             if i%100 == 0: print("\tProcessing event:", i)
 
             # Make counters and key objects to track
+            n_trk = 0
+            n_matched_trk = 0
             n_pfo = 0
             n_mcp = 0
             n_pfo_el = 0
@@ -92,14 +113,21 @@ for s in files:
             for mcp in mcps:
                 if not mcp.getGeneratorStatus() == 1: continue
                 mcp_tlv = getTLV(mcp)
+                if abs(mcp_tlv.Eta())>2: continue
                 fillObjHists(hists[s], "mcp", mcp_tlv)
+                momentum = math.sqrt(mcp.getMomentum()[0]**2+mcp.getMomentum()[1]**2+mcp.getMomentum()[2]**2)
+                hists2d[s]["mcp_E_v_mcp_p"].Fill(mcp.getEnergy(), momentum)
                 n_mcp += 1
+
 
                 # Look at electrons only
                 if abs(mcp.getPDG()) == 11:
                     fillObjHists(hists[s], "mcp_el", mcp_tlv)
                     my_mcp_el = mcp_tlv
                     n_mcp_el += 1
+
+            # Only consider events that had at least one electron in our fiducial region
+            if n_mcp < 1: continue
 
             hists[s]["mcp_n"].Fill(n_mcp)
             hists[s]["mcp_el_n"].Fill(n_mcp_el)
@@ -110,6 +138,8 @@ for s in files:
                 pfo_tlv = getTLV(pfo)
                 fillObjHists(hists[s], "pfo", pfo_tlv)
                 n_pfo += 1
+
+                hists2d[s]["pfo_pt_v_mcp_pt"].Fill(pfo_tlv.Perp(), my_mcp_el.Perp())
 
                 # Look at electrons only
                 if abs(pfo.getType()) == 11:
@@ -126,15 +156,34 @@ for s in files:
             hists[s]["mcp_el_match_n"].Fill(n_matched_el)
 
             ######## Loop over tracks
+            for trk in trks:
+                trk_tlv = getTrackTLV(trk, m=0.0005)
+                fillObjHists(hists[s], "trk", trk_tlv)
 
-            #for trk in trks:
+                hists2d[s]["trk_eta_v_trk_pt"].Fill(trk_tlv.Eta(), trk_tlv.Perp())
+                hists2d[s]["trk_eta_v_trk_phi"].Fill(trk_tlv.Eta(), trk_tlv.Phi())
+                hists2d[s]["trk_eta_v_trk_n"].Fill(trk_tlv.Eta(), len(trks))
+                hists2d[s]["trk_eta_v_mcp_eta"].Fill(trk_tlv.Eta(), my_mcp_el.Eta())
+                hists2d[s]["trk_eta_v_mcp_pt"].Fill(trk_tlv.Eta(), my_mcp_el.Perp())
+                hists2d[s]["trk_eta_v_mcp_phi"].Fill(trk_tlv.Eta(), my_mcp_el.Phi())
+                hists2d[s]["trk_pt_v_mcp_pt"].Fill(trk_tlv.Perp(), my_mcp_el.Perp())
+                n_trk += 1
 
-            #del(mcps, pfos, trks)
+                if isMatched(trk_tlv, my_mcp_el):
+                    fillObjHists(hists[s], "trk_el_match", my_mcp_el)
+                    n_matched_trk += 1
+
+            hists[s]["trk_n"].Fill(n_trk)
+            hists[s]["trk_el_match_n"].Fill(n_matched_trk)
 
             # Iterate counter
             i += 1
 
         reader.close()
+
+print("ntracks entries", hists[s]["trk_n"].GetEntries())
+print("ntracks integral from 1", hists[s]["trk_n"].GetEntries())
+print("trackpt entries", hists[s]["trk_pt"].GetEntries())
 
 # Draw all the 1D histograms you filled
 for i, h in enumerate(hists[s]):
@@ -152,4 +201,13 @@ for i, h in enumerate(hists[s]):
     # Call plotting function
     plotHistograms(hists_to_plot, "plots/electrons/"+h+".png", xlabel, "Entries")
     plotHistograms(hists_to_plot, "plots/electrons/"+h+".root", xlabel, "Entries")
+    #plotHistograms(hists_to_plot, "plots/electrons_no_el_req/"+h+".png", xlabel, "Entries")
+    #plotHistograms(hists_to_plot, "plots/electrons_no_el_req/"+h+".root", xlabel, "Entries")
 
+for s in hists2d:
+    for h in hists2d[s]:
+        c = ROOT.TCanvas("can", "can")
+        hists2d[s][h].Draw("colz")
+        hists2d[s][h].GetXaxis().SetTitle(h.split("_v_")[0])
+        hists2d[s][h].GetYaxis().SetTitle(h.split("_v_")[1])
+        c.SaveAs(f"plots/electrons/{hists2d[s][h].GetName()}.png")

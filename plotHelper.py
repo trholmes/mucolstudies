@@ -1,3 +1,5 @@
+import ROOT
+import math
 
 print("Loading in plotHelper.py")
 
@@ -21,6 +23,24 @@ def getTLV(obj):
     #obj_tlv.SetPxPyPzE(obj_p.x, obj_p.y, obj_p.z, obj_e)
     obj_tlv.SetPxPyPzE(obj_p[0], obj_p[1], obj_p[2], obj_e)
     return obj_tlv
+
+# Get pT from track object
+# Taken from here
+# https://bib-pubdb1.desy.de/record/81214/files/LC-DET-2006-004%5B1%5D.pdf
+def getPt(trk, b_field = 5):
+    return 3e-4*abs(b_field/trk.getOmega())
+def getP(trk, b_field = 5):
+    return getPt(trk)*math.sqrt(1+trk.getTanLambda()**2)
+def getTrackTLV(trk, m = .106, b_field = 5):
+    pt = getPt(trk, b_field)
+    p = getP(trk, b_field)
+    px = pt*math.cos(trk.getPhi())
+    py = pt*math.sin(trk.getPhi())
+    pz = pt*trk.getTanLambda()
+    E = math.sqrt(p**2 + m**2) # Assume this is a muon
+    trk_tlv = ROOT.TLorentzVector()
+    trk_tlv.SetPxPyPzE(px, py, pz, E)
+    return trk_tlv
 
 def fillObjHists(hists, objtype, obj):
     for var in variables["obj"]:
