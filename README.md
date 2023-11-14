@@ -1,11 +1,19 @@
 # mucolstudies
 Collection of scripts for performing Muon Collider studies. These scripts assume you're inside the singularity image used in the [Fermilab Muon Collider tutorial](https://mcdwiki.docs.cern.ch/tutorials/fermilab2022/computing_setup/) which does some path mapping for you on the Snowmass cluster. In particular, you should run:
 
-`singularity run -B /collab/project/snowmass21/data/muonc:/data -B /work/$USER /cvmfs/unpacked.cern.ch/registry.hub.docker.com/infnpd/mucoll-ilc-framework\:1.6-centos8`
+```
+apptainer build k4toroid.sif docker://madbaron/k4test-ubuntu:latest
+apptainer run --no-home -B /tank/data/snowmass21/muonc:/data -B /home/$USER -B /work/$USER /home/$USER/mucol/k4toroid.sif
+```
 
 and then from inside the image, run:
 
-`source /opt/ilcsoft/muonc/init_ilcsoft.sh`
+```
+source  /opt/spack/share/spack/setup-env.sh
+spack env activate -V k4prod
+source /opt/spack/opt/spack/linux-ubuntu22.04-x86_64/gcc-11.3.0/mucoll-stack-2023-07-30-ysejlaccel4azxh3bxzsdb7asuzxbfof/setup.sh
+export MARLIN_DLL=$MARLIN_DLL:/opt/MyBIBUtils/lib/libMyBIBUtils.so
+```
 
 (FYI, putting these two in one shell script and sourcing it will not work; it won't execute the second command until you exit the singularity. You can also update to a newer release, which you can find [here](https://confluence.infn.it/display/muoncollider/Software), but I ran into trouble running with 1.7 with my current setup.)
 
