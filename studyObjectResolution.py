@@ -13,12 +13,13 @@ ROOT.gROOT.SetBatch()
 
 # Set up some options
 max_events = -1
-obj_type = "el"
+obj_type = "ph"
 magnetic_field = 5.00
 
 # Set up things for each object
 settings = {
-        "fnames": { "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun*",
+        "fnames": { #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun*",
+                    "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/photonGun*",
                     "mu": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun*",
                     "el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*"},
         "labelname": {  "ph": "Photon",
@@ -139,11 +140,12 @@ h_2d_pforelE2 = ROOT.TH2F("h_2d_pforelE2", "h_2d_pforelE2", 30, 0, 3000, 500, -0
 h_2d_trkrelE2 = ROOT.TH2F("h_2d_trkrelE2", "h_2d_trkrelE2", 30, 0, 3000, 500, -0.5, 0.5)
 h_2d_pforelE_eta = ROOT.TH2F("h_2d_pforelE_eta", "h_2d_pforelE_eta", 30, -3, 3, 500, -0.5, 0.5)
 h_2d_trkrelE_eta = ROOT.TH2F("h_2d_trkrelE_eta", "h_2d_trkrelE_eta", 30, -3, 3, 500, -0.5, 0.5)
-
+h_2d_pfoSFs = ROOT.TH2F("h_2d_pfoSFs", "h_2d_pfoSFs", 60, 0, 3000, 1000, 0.5, 3)
 
 # ############## LOOP OVER EVENTS AND FILL HISTOGRAMS  #############################
 # Loop over events
 reader = pyLCIO.IOIMPL.LCFactory.getInstance().createLCReader()
+reader.setReadCollectionNames(["MCParticle", "PandoraPFOs", "SiTracks_Refitted"])
 i = 0
 for f in fnames:
     reader.open(f)
@@ -232,6 +234,7 @@ for f in fnames:
                 hists2d["pfo_ob_v_mcp_ob_phi"].Fill(my_mcp_ob.Phi(), my_pfo_ob.Phi())
                 hists["d_ob_dpt"].Fill((my_pfo_ob.Perp()-my_mcp_ob.Perp()))
                 hists["d_ob_drelpt"].Fill((my_pfo_ob.Perp()-my_mcp_ob.Perp())/my_mcp_ob.Perp())
+                hists["d_ob_drelE"].Fill((my_pfo_ob.E()-my_mcp_ob.E())/my_mcp_ob.E())
                 hists["d_ob_dphi"].Fill((my_pfo_ob.Phi()-my_mcp_ob.Phi()))
                 hists["d_ob_deta"].Fill((my_pfo_ob.Eta()-my_mcp_ob.Eta()))
                 h_2d_pforelpt.Fill(my_mcp_ob.Perp(), (my_pfo_ob.Perp()-my_mcp_ob.Perp())/my_mcp_ob.Perp())
@@ -248,6 +251,7 @@ for f in fnames:
                     h_2d_pforelE2.Fill(my_mcp_ob.E(), (my_pfo_ob.E()-my_mcp_ob.E())/my_mcp_ob.E())
                 h_2d_pforelpt_eta.Fill(my_mcp_ob.Eta(), (my_pfo_ob.Perp()-my_mcp_ob.Perp())/my_mcp_ob.Perp())
                 h_2d_pforelE_eta.Fill(my_mcp_ob.Eta(), (my_pfo_ob.E()-my_mcp_ob.E())/my_mcp_ob.E())
+                h_2d_pfoSFs.Fill(my_pfo_ob.E(), my_mcp_ob.E()/my_pfo_ob.E())
 
             if has_trk_ob:
                 hists["trk_ob_pt"].Fill(my_trk_ob.Perp())
@@ -261,6 +265,7 @@ for f in fnames:
                 hists2d["trk_ob_v_mcp_ob_phi"].Fill(my_mcp_ob.Phi(), my_trk_ob.Phi())
                 hists["d_trk_dpt"].Fill((my_trk_ob.Perp()-my_mcp_ob.Perp()))
                 hists["d_trk_drelpt"].Fill((my_trk_ob.Perp()-my_mcp_ob.Perp())/my_mcp_ob.Perp())
+                hists["d_trk_drelE"].Fill((my_trk_ob.E()-my_mcp_ob.E())/my_mcp_ob.E())
                 hists["d_trk_dphi"].Fill((my_trk_ob.Phi()-my_mcp_ob.Phi()))
                 hists["d_trk_deta"].Fill((my_trk_ob.Eta()-my_mcp_ob.Eta()))
                 h_2d_trkrelpt.Fill(my_mcp_ob.Perp(), (my_trk_ob.Perp() - my_mcp_ob.Perp())/my_mcp_ob.Perp())
@@ -374,7 +379,7 @@ for h in [h_2d_pforelpt_eta, h_2d_trkrelpt_eta]:
     c.SaveAs(f"plots/{settings['plotdir'][obj_type]}/{h.GetTitle()}_prof.png")
     c.SaveAs(f"plots/{settings['plotdir'][obj_type]}/{h.GetTitle()}_prof.root")
 
-for h in [h_2d_pforelE, h_2d_pforelE_vmeas, h_2d_trkrelE, h_2d_pforelE1p1, h_2d_pforelE1p2, h_2d_pforelE2, h_2d_trkrelE1p1, h_2d_trkrelE1p1, h_2d_trkrelE2]:
+for h in [h_2d_pfoSFs, h_2d_pforelE, h_2d_pforelE_vmeas, h_2d_trkrelE, h_2d_pforelE1p1, h_2d_pforelE1p2, h_2d_pforelE2, h_2d_trkrelE1p1, h_2d_trkrelE1p1, h_2d_trkrelE2]:
     c = ROOT.TCanvas("can", "can")
     c.SetRightMargin(0.18)
     h.Draw("colz")
