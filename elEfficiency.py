@@ -30,8 +30,8 @@ for p in plots:
     x_range = None
     for s in slices:
 
-        num_h = num_can.GetPrimitive(f"electronGun_pT_{s}_{num}_{p}")
-        den_h = den_can.GetPrimitive(f"electronGun_pT_{s}_{den}_{p}")
+        num_h = num_can.GetPrimitive(f"electronGun_pT_{s}_{num}_{p}")#.Rebin(2)
+        den_h = den_can.GetPrimitive(f"electronGun_pT_{s}_{den}_{p}")#.Rebin(2)
         eff = ROOT.TEfficiency(num_h, den_h)
         x_range = [num_h.GetXaxis().GetXmin(), num_h.GetXaxis().GetXmax()]
         label = "e p_{T} "+s.split("_")[0]+"-"+s.split("_")[1]

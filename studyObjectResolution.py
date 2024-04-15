@@ -15,13 +15,15 @@ ROOT.gROOT.SetBatch()
 max_events = -1
 obj_type = "ph"
 magnetic_field = 5.00
+max_E = 1000
 
 # Set up things for each object
 settings = {
-        "fnames": { #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun*",
-                    "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/photonGun*",
+        "fnames": { "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun*",
+                    #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/photonGun*",
                     "mu": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun*",
-                    "el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*"},
+                    "el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/electronGun*"},
+                    #"el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*"},
         "labelname": {  "ph": "Photon",
                         "mu": "Muon",
                         "el": "Electron"},
@@ -74,14 +76,15 @@ def isMatched(tlv1, tlv2, req_pt = True):
     if tlv1.DeltaR(tlv2) > 0.1: return False
     if req_pt:
         drelpt = abs(tlv1.Perp()-tlv2.Perp())/tlv2.Perp()
-        if drelpt > 0.1*tlv2.Perp()/100: return False # Require 10% at 100, 20% at 200, ...
+        if drelpt > 0.2: return False # Simple 20% matching
+        #if drelpt > 0.1*tlv2.Perp()/100: return False # Require 10% at 100, 20% at 200, ...
     return True
 
 # ############## CREATE EMPTY HISTOGRAM OBJECTS  #############################
 # Set up histograms
 # This is an algorithmic way of making a bunch of histograms and storing them in a dictionary
 variables = {}
-variables["pt"] =  {"nbins": 30, "xmin": 0, "xmax": 3000,   "title": "p_{T} [GeV]"}
+variables["pt"] =  {"nbins": 30, "xmin": 0, "xmax": max_E,   "title": "p_{T} [GeV]"}
 variables["eta"] = {"nbins": 30, "xmin": -3, "xmax": 3,     "title": "#eta"}
 variables["phi"] = {"nbins": 30, "xmin": -3.5, "xmax": 3.5, "title": "#phi"}
 variables["n"] =   {"nbins": 20, "xmin": 0, "xmax": 20,     "title": "n"}
@@ -119,28 +122,28 @@ for obj in ["trk_ob", "pfo_ob"]:
 
 # Finally making one 2D histogram non-algorithmically; this is what I'll use for a
 # pT resolution vs. pT plot.
-h_2d_pforelpt = ROOT.TH2F("h_2d_pforelpt", "h_2d_pforelpt", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_trkrelpt = ROOT.TH2F("h_2d_trkrelpt", "h_2d_trkrelpt", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_pforelpt1p1 = ROOT.TH2F("h_2d_pforelpt1p1", "h_2d_pforelpt1p1", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_trkrelpt1p1 = ROOT.TH2F("h_2d_trkrelpt1p1", "h_2d_trkrelpt1p1", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_pforelpt1p2 = ROOT.TH2F("h_2d_pforelpt1p2", "h_2d_pforelpt1p2", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_trkrelpt1p2 = ROOT.TH2F("h_2d_trkrelpt1p2", "h_2d_trkrelpt1p2", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_pforelpt2 = ROOT.TH2F("h_2d_pforelpt2", "h_2d_pforelpt2", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_trkrelpt2 = ROOT.TH2F("h_2d_trkrelpt2", "h_2d_trkrelpt2", 30, 0, 3000, 500, -0.5, 0.5)
+h_2d_pforelpt = ROOT.TH2F("h_2d_pforelpt", "h_2d_pforelpt", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_trkrelpt = ROOT.TH2F("h_2d_trkrelpt", "h_2d_trkrelpt", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_pforelpt1p1 = ROOT.TH2F("h_2d_pforelpt1p1", "h_2d_pforelpt1p1", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_trkrelpt1p1 = ROOT.TH2F("h_2d_trkrelpt1p1", "h_2d_trkrelpt1p1", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_pforelpt1p2 = ROOT.TH2F("h_2d_pforelpt1p2", "h_2d_pforelpt1p2", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_trkrelpt1p2 = ROOT.TH2F("h_2d_trkrelpt1p2", "h_2d_trkrelpt1p2", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_pforelpt2 = ROOT.TH2F("h_2d_pforelpt2", "h_2d_pforelpt2", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_trkrelpt2 = ROOT.TH2F("h_2d_trkrelpt2", "h_2d_trkrelpt2", 30, 0, max_E, 500, -0.5, 0.5)
 h_2d_pforelpt_eta = ROOT.TH2F("h_2d_pforelpt_eta", "h_2d_pforelpt_eta", 30, -3, 3, 500, -0.5, 0.5)
 h_2d_trkrelpt_eta = ROOT.TH2F("h_2d_trkrelpt_eta", "h_2d_trkrelpt_eta", 30, -3, 3, 500, -0.5, 0.5)
-h_2d_pforelE = ROOT.TH2F("h_2d_pforelE", "h_2d_pforelE", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_pforelE_vmeas = ROOT.TH2F("h_2d_pforelE_vmeas", "h_2d_pforelE_vmeas", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_trkrelE = ROOT.TH2F("h_2d_trkrelE", "h_2d_trkrelE", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_pforelE1p1 = ROOT.TH2F("h_2d_pforelE1p1", "h_2d_pforelE1p1", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_trkrelE1p1 = ROOT.TH2F("h_2d_trkrelE1p1", "h_2d_trkrelE1p1", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_pforelE1p2 = ROOT.TH2F("h_2d_pforelE1p2", "h_2d_pforelE1p2", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_trkrelE1p2 = ROOT.TH2F("h_2d_trkrelE1p2", "h_2d_trkrelE1p2", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_pforelE2 = ROOT.TH2F("h_2d_pforelE2", "h_2d_pforelE2", 30, 0, 3000, 500, -0.5, 0.5)
-h_2d_trkrelE2 = ROOT.TH2F("h_2d_trkrelE2", "h_2d_trkrelE2", 30, 0, 3000, 500, -0.5, 0.5)
+h_2d_pforelE = ROOT.TH2F("h_2d_pforelE", "h_2d_pforelE", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_pforelE_vmeas = ROOT.TH2F("h_2d_pforelE_vmeas", "h_2d_pforelE_vmeas", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_trkrelE = ROOT.TH2F("h_2d_trkrelE", "h_2d_trkrelE", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_pforelE1p1 = ROOT.TH2F("h_2d_pforelE1p1", "h_2d_pforelE1p1", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_trkrelE1p1 = ROOT.TH2F("h_2d_trkrelE1p1", "h_2d_trkrelE1p1", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_pforelE1p2 = ROOT.TH2F("h_2d_pforelE1p2", "h_2d_pforelE1p2", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_trkrelE1p2 = ROOT.TH2F("h_2d_trkrelE1p2", "h_2d_trkrelE1p2", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_pforelE2 = ROOT.TH2F("h_2d_pforelE2", "h_2d_pforelE2", 30, 0, max_E, 500, -0.5, 0.5)
+h_2d_trkrelE2 = ROOT.TH2F("h_2d_trkrelE2", "h_2d_trkrelE2", 30, 0, max_E, 500, -0.5, 0.5)
 h_2d_pforelE_eta = ROOT.TH2F("h_2d_pforelE_eta", "h_2d_pforelE_eta", 30, -3, 3, 500, -0.5, 0.5)
 h_2d_trkrelE_eta = ROOT.TH2F("h_2d_trkrelE_eta", "h_2d_trkrelE_eta", 30, -3, 3, 500, -0.5, 0.5)
-h_2d_pfoSFs = ROOT.TH2F("h_2d_pfoSFs", "h_2d_pfoSFs", 60, 0, 3000, 1000, 0.5, 3)
+h_2d_pfoSFs = ROOT.TH2F("h_2d_pfoSFs", "h_2d_pfoSFs", 60, 0, max_E, 1000, 0.5, 3)
 
 # ############## LOOP OVER EVENTS AND FILL HISTOGRAMS  #############################
 # Loop over events
@@ -185,7 +188,7 @@ for f in fnames:
             pfo_tlv = getTLV(pfo)
 
             if abs(pfo.getType())==settings['pdgid'][obj_type]:
-                if has_mcp_ob and isMatched(pfo_tlv, my_mcp_ob, req_pt = False):
+                if has_mcp_ob: # and isMatched(pfo_tlv, my_mcp_ob, req_pt = True):
                     n_pfo_ob += 1
                     has_pfo_ob = True
                     if n_pfo_ob == 1:
@@ -198,7 +201,7 @@ for f in fnames:
         # If there are multiple, it'll keep the one with the higher pT
         for trk in trkCollection:
             trk_tlv = getTrackTLV(trk)
-            if has_mcp_ob and isMatched(trk_tlv, my_mcp_ob, req_pt = False):
+            if has_mcp_ob: # and isMatched(trk_tlv, my_mcp_ob, req_pt = True):
                 has_trk_ob = True
                 n_matched_tracks += 1
                 if n_matched_tracks == 1:

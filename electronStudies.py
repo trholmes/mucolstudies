@@ -17,12 +17,13 @@ exec(open("./plotHelper.py").read())
 ROOT.gROOT.SetBatch()
 
 # Set up some options
-max_events = 103
+max_events = -1
 
 # Open the edm4hep files with ROOT
 #samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/k4reco/electronGun*")
-samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*")
+#samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*")
 #samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/recoBIB/electronGun*")
+samples = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/electronGun*")
 files = {}
 #slices = ["250_1000"]
 slices = ["0_50", "50_250", "250_1000", "1000_5000"]
