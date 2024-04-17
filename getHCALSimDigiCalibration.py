@@ -13,8 +13,8 @@ ROOT.gROOT.SetBatch()
 
 # Set up some options
 max_events = -1
-obj_type = "pi"
-append = "240415"
+obj_type = "ne"
+append = "240417"
 do_ECAL = False
 do_HCAL = True
 ECAL_calib_file = "calib/theta_prof_240415.root"
@@ -22,23 +22,28 @@ ECAL_calib_file = "calib/theta_prof_240415.root"
 # Set up things for each object
 settings = {
         "fnames": {
+                    "ne": "/data/fmeloni/DataMuC_MuColl10_v0A/v0/reco/neutronGun_E_250_1000*",
                     "pi": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/pionGun_pT_250_1000*",
                     "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun_E_250_1000*",
                     "mu": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun*",
                     "el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*"},
-        "labelname": {  "pi": "Pion",
+        "labelname": {  "ne": "Neutron",
+                        "pi": "Pion",
                         "ph": "Photon",
                         "mu": "Muon",
                         "el": "Electron"},
-        "plotdir":{ "pi": "pions",
+        "plotdir":{ "ne": "neutrons",
+                    "pi": "pions",
                     "ph": "photons",
                     "mu": "muons",
                     "el": "electrons"},
-        "pdgid":  { "pi": [211, 111],
+        "pdgid":  { "ne": [2112],
+                    "pi": [211, 111],
                     "ph": [22],
                     "mu": [13],
                     "el": [11]},
-        "mass":   { "pi": 0.135,
+        "mass":   { "ne": 0.940,
+                    "pi": 0.135,
                     "ph": 0,
                     "mu": 0.106,
                     "el": 0.000511}
