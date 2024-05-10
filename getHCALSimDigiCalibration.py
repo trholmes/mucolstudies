@@ -144,7 +144,7 @@ for f in fnames:
         h_sim_E = sum(h_values_b) + sum(h_values_e)
 
         # Only make plots for events with isGood mcps
-        if has_mcp_ob:
+        if has_mcp_ob and h_sim_E > 0:
             # Calibrate the ecal energy and subtract off
             ecal_calib_value = h_calib.GetBinContent(h_calib.FindBin(my_mcp_ob.Theta()))
             estimated_hcal_energy = my_mcp_ob.E() - e_sim_E*ecal_calib_value
