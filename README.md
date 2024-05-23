@@ -3,7 +3,7 @@ Collection of scripts for performing Muon Collider studies. These scripts assume
 
 ```
 apptainer build k4toroid.sif docker://madbaron/k4test-ubuntu:latest
-apptainer run --no-home -B /tank/data/snowmass21/muonc:/data -B /home/$USER -B /work/$USER /home/$USER/mucol/k4toroid.sif
+apptainer run --no-home -B /tank/data/snowmass21/muonc:/data -B /home/$USER -B /work/$USER k4toroid.sif
 ```
 
 and then from inside the image, run:
