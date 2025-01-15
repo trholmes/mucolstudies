@@ -13,29 +13,44 @@ ROOT.gROOT.SetBatch()
 
 # Set up some options
 max_events = -1
-obj_type = "ph"
+obj_type = "ne"
 magnetic_field = 5.00
-max_E = 1000
+max_E = 100
+calibrate = False
+
+# I haven't implemented calibration yet -- was using Rose's version but then
+# realized that I'd need a more fine-grained E binning at low values so I bailed
+#EBins = array('d', (0., 50., 100., 150., 200., 250., 300., 350., 400., 450., 500., 550., 600., 650., 700., 750., 800., 850., 900., 950., 1000.))
+#ThetaBins = np.linspace(0.175,2.96,30)
+
 
 # Set up things for each object
 settings = {
-        "fnames": { "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun*",
+        "fnames": {
+                    #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/reco/photonGun_E_0*",
+                    "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/recoBIB/photonGun_E_0*",
+                    #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun*",
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/photonGun*",
                     "mu": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun*",
-                    "el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/electronGun*"},
+                    "el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/electronGun*",
                     #"el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*"},
+                    "ne": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/recoBIB/neutronGun_E_0*",},
         "labelname": {  "ph": "Photon",
                         "mu": "Muon",
-                        "el": "Electron"},
+                        "el": "Electron",
+                        "ne": "Neutron",},
         "plotdir":{ "ph": "photons",
                     "mu": "muons",
-                    "el": "electrons"},
+                    "el": "electrons",
+                    "ne": "neutrons_sumE_lowE",},
         "pdgid":  { "ph": 22,
                     "mu": 13,
-                    "el": 11},
+                    "el": 11,
+                    "ne": 2112,},
         "mass":   { "ph": 0,
                     "mu": 0.106,
-                    "el": 0.000511}
+                    "el": 0.000511,
+                    "ne": 0.9396,}
 }
 print("Running on", settings["labelname"][obj_type])
 
@@ -67,12 +82,13 @@ def getTrackTLV(trk):
 
 # Define good particle
 def isGood(tlv):
-    if abs(tlv.Eta()) < 2:
+    if abs(tlv.Eta()) < 2 and tlv.E()>20:
         return True
     return False
 
 # Perform matching between two TLVs
 def isMatched(tlv1, tlv2, req_pt = True):
+    if tlv1.E()<10: return False
     if tlv1.DeltaR(tlv2) > 0.1: return False
     if req_pt:
         drelpt = abs(tlv1.Perp()-tlv2.Perp())/tlv2.Perp()
@@ -84,6 +100,8 @@ def isMatched(tlv1, tlv2, req_pt = True):
 # Set up histograms
 # This is an algorithmic way of making a bunch of histograms and storing them in a dictionary
 variables = {}
+variables["E"] =  {"nbins": 30, "xmin": 0, "xmax": max_E,   "title": "E [GeV]"}
+variables["Esum"] =  {"nbins": 30, "xmin": 0, "xmax": max_E,   "title": "E [GeV]"}
 variables["pt"] =  {"nbins": 30, "xmin": 0, "xmax": max_E,   "title": "p_{T} [GeV]"}
 variables["eta"] = {"nbins": 30, "xmin": -3, "xmax": 3,     "title": "#eta"}
 variables["phi"] = {"nbins": 30, "xmin": -3.5, "xmax": 3.5, "title": "#phi"}
@@ -106,10 +124,11 @@ for obj in objects:
 # these plots will all be filled with the difference between a pfo and a mcp object value
 dvariables = {}
 dvariables["dpt"] =     {"nbins": 100, "xmin": -500, "xmax": 500,       "title": "p_{T}^{meas.} - p_{T}^{true.} [GeV]"}
-dvariables["drelpt"] =  {"nbins": 100, "xmin": -0.5, "xmax": 0.5,       "title": "(p_{T}^{meas.} - p_{T}^{true.})/p_{T}^{true.}"}
-dvariables["drelE"] =  {"nbins": 100, "xmin": -0.5, "xmax": 0.5,       "title": "(E^{meas.} - E^{true.})/E^{true.}"}
-dvariables["deta"] =    {"nbins": 100, "xmin": -0.001, "xmax": 0.001,   "title": "#eta^{meas.} - #eta^{true}"}
-dvariables["dphi"] =    {"nbins": 100, "xmin": -0.001, "xmax": 0.001,   "title": "#phi^{meas.} - #phi^{true}"}
+dvariables["drelpt"] =  {"nbins": 100, "xmin": -1, "xmax": 1,       "title": "(p_{T}^{meas.} - p_{T}^{true.})/p_{T}^{true.}"}
+dvariables["drelE"] =  {"nbins": 100, "xmin": -1, "xmax": 3,       "title": "(E^{meas.} - E^{true.})/E^{true.}"}
+dvariables["drelEsum"] =  {"nbins": 100, "xmin": -1, "xmax": 3,       "title": "(E^{meas.} - E^{true.})/E^{true.}"}
+dvariables["deta"] =    {"nbins": 100, "xmin": -0.01, "xmax": 0.01,   "title": "#eta^{meas.} - #eta^{true}"}
+dvariables["dphi"] =    {"nbins": 100, "xmin": -0.01, "xmax": 0.01,   "title": "#phi^{meas.} - #phi^{true}"}
 for obj in ["d_ob", "d_trk"]:
     for var in dvariables:
         hists[obj+"_"+var] = ROOT.TH1F(obj+"_"+var, obj+"_"+var, dvariables[var]["nbins"], dvariables[var]["xmin"], dvariables[var]["xmax"])
@@ -144,6 +163,9 @@ h_2d_trkrelE2 = ROOT.TH2F("h_2d_trkrelE2", "h_2d_trkrelE2", 30, 0, max_E, 500, -
 h_2d_pforelE_eta = ROOT.TH2F("h_2d_pforelE_eta", "h_2d_pforelE_eta", 30, -3, 3, 500, -0.5, 0.5)
 h_2d_trkrelE_eta = ROOT.TH2F("h_2d_trkrelE_eta", "h_2d_trkrelE_eta", 30, -3, 3, 500, -0.5, 0.5)
 h_2d_pfoSFs = ROOT.TH2F("h_2d_pfoSFs", "h_2d_pfoSFs", 60, 0, max_E, 1000, 0.5, 3)
+h_2d_nVsRelE = ROOT.TH2F("h_2d_nVsRelE", "h_2d_nVsRelE", 50, -1, 0.5, 10, 0, 9)
+h_2d_nVsRelEAnyPFO = ROOT.TH2F("h_2d_nVsRelEAnyPFO", "h_2d_nVsRelEAnyPFO", 50, -1, 0.5, 10, 0, 9)
+h_2d_nVsRelEsumAnyPFO = ROOT.TH2F("h_2d_nVsRelEAnyPFO", "h_2d_nVsRelEAnyPFO", 50, -1, 0.5, 10, 0, 9)
 
 # ############## LOOP OVER EVENTS AND FILL HISTOGRAMS  #############################
 # Loop over events
@@ -166,6 +188,9 @@ for f in fnames:
         # Make counter variables
         n_mcp_ob = 0
         n_pfo_ob = 0
+        n_matched_pfo_ob = 0
+        n_matched_anypfo_ob = 0
+        matched_anypfo_Esum = 0
         has_mcp_ob = False
         has_pfo_ob = False
         has_trk_ob = False
@@ -187,21 +212,33 @@ for f in fnames:
         for pfo in pfoCollection:
             pfo_tlv = getTLV(pfo)
 
+            if calibrate:
+
+                calib_resp = 0
+                pfo_tlv.SetPxPyPzE(pfo_tlv.Px()*calib_resp, pfo_tlv.Py()*calib_resp, pfo_tlv.Pz()*calib_resp, pfo_tlv.E()*calib_resp)
+
             if abs(pfo.getType())==settings['pdgid'][obj_type]:
-                if has_mcp_ob: # and isMatched(pfo_tlv, my_mcp_ob, req_pt = True):
-                    n_pfo_ob += 1
+                n_pfo_ob += 1
+                if has_mcp_ob and isMatched(pfo_tlv, my_mcp_ob, req_pt = False):
+                    n_matched_pfo_ob += 1
+                    n_matched_anypfo_ob +=1
+                    matched_anypfo_Esum += pfo_tlv.E()
                     has_pfo_ob = True
-                    if n_pfo_ob == 1:
+                    if n_matched_pfo_ob == 1:
                         my_pfo_ob = pfo_tlv
-                    elif n_pfo_ob > 1 and pfo_tlv.Perp() > my_pfo_ob.Perp():
+                    elif n_matched_pfo_ob > 1 and pfo_tlv.E() > my_pfo_ob.E():
                         my_pfo_ob = pfo_tlv
+            else:
+                if has_mcp_ob and isMatched(pfo_tlv, my_mcp_ob, req_pt = False):
+                    n_matched_anypfo_ob +=1
+                    matched_anypfo_Esum += pfo_tlv.E()
 
         n_matched_tracks = 0
         # Loop over track collection and save a matched track
         # If there are multiple, it'll keep the one with the higher pT
         for trk in trkCollection:
             trk_tlv = getTrackTLV(trk)
-            if has_mcp_ob: # and isMatched(trk_tlv, my_mcp_ob, req_pt = True):
+            if has_mcp_ob and isMatched(trk_tlv, my_mcp_ob, req_pt = False):
                 has_trk_ob = True
                 n_matched_tracks += 1
                 if n_matched_tracks == 1:
@@ -215,7 +252,7 @@ for f in fnames:
                 trk.tlv = getTrackTLV(trk)
                 print(f"Track {j}: pT {trk_tlv.Perp()}")
 
-        if n_pfo_ob > 1: print("Found multiple PFOs:", n_pfo_ob)
+        #if n_matched_pfo_ob > 1: print("Found multiple matched PFOs:", n_matched_pfo_ob)
         hists["trk_n"].Fill(len(trkCollection))
         hists["trk_ob_n"].Fill(n_matched_tracks)
 
@@ -223,21 +260,33 @@ for f in fnames:
         if has_mcp_ob:
             #print("filling mcp_ob_pt with", my_mcp_ob.Perp())
             hists["mcp_ob_pt"].Fill(my_mcp_ob.Perp())
+            hists["mcp_ob_E"].Fill(my_mcp_ob.E())
             hists["mcp_ob_eta"].Fill(my_mcp_ob.Eta())
             hists["mcp_ob_phi"].Fill(my_mcp_ob.Phi())
+            hists["mcp_ob_n"].Fill(n_mcp_ob)
+            hists["pfo_ob_n"].Fill(n_matched_pfo_ob)
+            hists["trk_ob_n"].Fill(n_matched_tracks)
+            hists2d["pfo_ob_v_mcp_ob_n"].Fill(n_mcp_ob, n_pfo_ob)
             if has_pfo_ob:
                 hists["pfo_ob_pt"].Fill(my_pfo_ob.Perp())
+                hists["pfo_ob_E"].Fill(my_pfo_ob.E())
+                hists["pfo_ob_Esum"].Fill(matched_anypfo_Esum)
                 hists["pfo_ob_eta"].Fill(my_pfo_ob.Eta())
                 hists["pfo_ob_phi"].Fill(my_pfo_ob.Phi())
                 hists["mcp_ob_pfomatch_pt"].Fill(my_mcp_ob.Perp())
                 hists["mcp_ob_pfomatch_eta"].Fill(my_mcp_ob.Eta())
                 hists["mcp_ob_pfomatch_phi"].Fill(my_mcp_ob.Phi())
+                hists["mcp_ob_pfomatch_E"].Fill(my_mcp_ob.E())
+                hists["mcp_ob_pfomatch_Esum"].Fill(my_mcp_ob.E())
                 hists2d["pfo_ob_v_mcp_ob_pt"].Fill(my_mcp_ob.Perp(), my_pfo_ob.Perp())
+                hists2d["pfo_ob_v_mcp_ob_E"].Fill(my_mcp_ob.E(), my_pfo_ob.E())
+                hists2d["pfo_ob_v_mcp_ob_Esum"].Fill(my_mcp_ob.E(), matched_anypfo_Esum)
                 hists2d["pfo_ob_v_mcp_ob_eta"].Fill(my_mcp_ob.Eta(), my_pfo_ob.Eta())
                 hists2d["pfo_ob_v_mcp_ob_phi"].Fill(my_mcp_ob.Phi(), my_pfo_ob.Phi())
                 hists["d_ob_dpt"].Fill((my_pfo_ob.Perp()-my_mcp_ob.Perp()))
                 hists["d_ob_drelpt"].Fill((my_pfo_ob.Perp()-my_mcp_ob.Perp())/my_mcp_ob.Perp())
                 hists["d_ob_drelE"].Fill((my_pfo_ob.E()-my_mcp_ob.E())/my_mcp_ob.E())
+                hists["d_ob_drelEsum"].Fill((matched_anypfo_Esum-my_mcp_ob.E())/my_mcp_ob.E())
                 hists["d_ob_dphi"].Fill((my_pfo_ob.Phi()-my_mcp_ob.Phi()))
                 hists["d_ob_deta"].Fill((my_pfo_ob.Eta()-my_mcp_ob.Eta()))
                 h_2d_pforelpt.Fill(my_mcp_ob.Perp(), (my_pfo_ob.Perp()-my_mcp_ob.Perp())/my_mcp_ob.Perp())
@@ -255,9 +304,13 @@ for f in fnames:
                 h_2d_pforelpt_eta.Fill(my_mcp_ob.Eta(), (my_pfo_ob.Perp()-my_mcp_ob.Perp())/my_mcp_ob.Perp())
                 h_2d_pforelE_eta.Fill(my_mcp_ob.Eta(), (my_pfo_ob.E()-my_mcp_ob.E())/my_mcp_ob.E())
                 h_2d_pfoSFs.Fill(my_pfo_ob.E(), my_mcp_ob.E()/my_pfo_ob.E())
+                h_2d_nVsRelE.Fill((my_pfo_ob.E()-my_mcp_ob.E())/my_mcp_ob.E(), n_matched_pfo_ob)
+                h_2d_nVsRelEAnyPFO.Fill((my_pfo_ob.E()-my_mcp_ob.E())/my_mcp_ob.E(), n_matched_anypfo_ob)
+                h_2d_nVsRelEsumAnyPFO.Fill((matched_anypfo_Esum-my_mcp_ob.E())/my_mcp_ob.E(), n_matched_anypfo_ob)
 
             if has_trk_ob:
                 hists["trk_ob_pt"].Fill(my_trk_ob.Perp())
+                hists["trk_ob_E"].Fill(my_trk_ob.E())
                 hists["trk_ob_eta"].Fill(my_trk_ob.Eta())
                 hists["trk_ob_phi"].Fill(my_trk_ob.Phi())
                 hists["mcp_ob_trkmatch_pt"].Fill(my_mcp_ob.Perp())
@@ -285,7 +338,7 @@ for f in fnames:
                 h_2d_trkrelpt_eta.Fill(my_mcp_ob.Eta(), (my_trk_ob.Perp() - my_mcp_ob.Perp())/my_mcp_ob.Perp())
                 h_2d_trkrelE_eta.Fill(my_mcp_ob.Eta(), (my_trk_ob.E() - my_mcp_ob.E())/my_mcp_ob.E())
 
-            if has_pfo_ob and not has_trk_ob and not obj_type=="ph":
+            if has_pfo_ob and not has_trk_ob and not obj_type in ["ph", "ne"]:
                 print("Found event with a PFO but no track")
 
         i+=1
@@ -297,8 +350,11 @@ for f in fnames:
 
 # ############## MANIPULATE, PRETTIFY, AND SAVE HISTOGRAMS #############################
 
-print("Overall track efficiency:", hists["trk_ob_pt"].Integral()/hists["mcp_ob_pt"].Integral())
-print("Overall pfo efficiency:", hists["pfo_ob_pt"].Integral()/hists["mcp_ob_pt"].Integral())
+try:
+    print("Overall track efficiency:", hists["trk_ob_pt"].Integral()/hists["mcp_ob_pt"].Integral())
+    print("Overall pfo efficiency:", hists["pfo_ob_pt"].Integral()/hists["mcp_ob_pt"].Integral())
+except:
+    pass
 
 # Draw all the 1D histograms you filled
 for var in dvariables:
@@ -321,14 +377,14 @@ for var in dvariables:
         c.SaveAs(f"plots/{settings['plotdir'][obj_type]}/fit_{obj}_{var}.png")
 
 # Draw basic distributions
-for var in ["pt", "eta", "phi"]:
+for var in ["pt", "eta", "phi", "n", "E", "Esum"]:
     h_to_plot = {}
     for obj in ["trk_ob", "pfo_ob", "mcp_ob"]:
         h_to_plot[obj] = hists[obj+"_"+var]
     plotHistograms(h_to_plot, f"plots/{settings['plotdir'][obj_type]}/comp_{var}.png", variables[var]["title"], "Count")
 
 # Make efficiency plots
-for var in ["pt", "eta", "phi"]:
+for var in ["pt", "eta", "phi", "E", "Esum"]:
     efficiency_map = {}
     for obj in ["mcp_ob_trkmatch", "mcp_ob_pfomatch"]:
         efficiency_map[objects[obj]] = ROOT.TEfficiency(hists[obj+"_"+var], hists["mcp_ob_"+var])
@@ -398,6 +454,16 @@ for h in [h_2d_pfoSFs, h_2d_pforelE, h_2d_pforelE_vmeas, h_2d_trkrelE, h_2d_pfor
     h_prof.SetMaximum(0.5)
     c.SaveAs(f"plots/{settings['plotdir'][obj_type]}/{h.GetTitle()}_prof.png")
     c.SaveAs(f"plots/{settings['plotdir'][obj_type]}/{h.GetTitle()}_prof.root")
+
+for h in [h_2d_nVsRelE, h_2d_nVsRelEAnyPFO, h_2d_nVsRelEsumAnyPFO]:
+    c = ROOT.TCanvas("can", "can")
+    c.SetRightMargin(0.18)
+    h.Draw("colz")
+    h.GetXaxis().SetTitle(dvariables["drelE"]["title"])
+    h.GetYaxis().SetTitle("Number of matched PFOs")
+    c.SaveAs(f"plots/{settings['plotdir'][obj_type]}/{h.GetTitle()}.png")
+    c.SaveAs(f"plots/{settings['plotdir'][obj_type]}/{h.GetTitle()}.root")
+
 
 for h in [h_2d_pforelE_eta, h_2d_trkrelE_eta]:
     c = ROOT.TCanvas("can", "can")
