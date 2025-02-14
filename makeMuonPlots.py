@@ -54,8 +54,8 @@ h_2d_relpt = ROOT.TH2F("h_2d_relpt", "h_2d_relpt", 20, 0, 1000, 500, -0.5, 0.5)
 # ############## LOOP OVER EVENTS AND FILL HISTOGRAMS  #############################
 # Loop over events
 i = 0
+reader = pyLCIO.IOIMPL.LCFactory.getInstance().createLCReader()
 for f in fnames:
-    reader = pyLCIO.IOIMPL.LCFactory.getInstance().createLCReader()
     reader.open(f)
 
     for event in reader:

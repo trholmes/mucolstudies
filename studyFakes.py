@@ -87,6 +87,7 @@ for f in fnames:
 
             for obj in settings["pdgid"]:
                 if abs(pfo.getType()) == settings["pdgid"][obj]:
+
                     hists["eta"][obj].Fill(pfo_tlv.Eta())
                     hists["pt"][obj].Fill(pfo_tlv.Perp())
                     hists["E"][obj].Fill(pfo_tlv.E())
@@ -105,6 +106,7 @@ for var in hists:
     h_to_plot = {}
     for obj in hists[var]:
         h_to_plot[obj] = hists[var][obj]
+        print("Mean of", obj, var, hists[var][obj].GetMean())
     plotHistograms(h_to_plot, f"plots/fakes/comp_{var}.png", variables[var]["title"], "Count", logy=True)
 
 
