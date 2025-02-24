@@ -1,10 +1,11 @@
 # mucolstudies
-Collection of scripts for performing Muon Collider studies. These scripts assume you're inside the singularity image used in the [Fermilab Muon Collider tutorial](https://mcdwiki.docs.cern.ch/tutorials/fermilab2022/computing_setup/) which does some path mapping for you on the Snowmass cluster. In particular, you should run:
+Collection of scripts for performing Muon Collider studies. These scripts assume you're inside the singularity image used in the [Fermilab Muon Collider tutorial](https://mcdwiki.docs.cern.ch/tutorials/fermilab2022/computing_setup/) which does some path mapping for you on the Snowmass cluster. In particular, you should run something along the lines of:
 
 ```
 apptainer build k4toroid.sif docker://madbaron/k4test-ubuntu:latest
 apptainer run --no-home -B /ospool/uc-shared/project/futurecolliders/data:/data -B /scratch/$USER -B /home/$USER /scratch/trholmes/mucol/k4toroid.sif
 ```
+You can update this command to use your own location instead of mine (although I believe it will work if you just run my .sif file and skip the first line). 
 
 and then from inside the image, run:
 
