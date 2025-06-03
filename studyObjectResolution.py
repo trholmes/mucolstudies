@@ -13,9 +13,9 @@ ROOT.gROOT.SetBatch()
 
 # Set up some options
 max_events = -1
-obj_type = "ne"
+obj_type = "el"
 magnetic_field = 5.00
-max_E = 100
+max_E = 50
 calibrate = False
 
 # I haven't implemented calibration yet -- was using Rose's version but then
@@ -32,8 +32,9 @@ settings = {
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun*",
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/photonGun*",
                     "mu": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun*",
-                    "el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/electronGun*",
+                    #"el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/electronGun*",
                     #"el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*"},
+                    "el": "/data/fmeloni/DataMuC_MAIA_v0/v2/reco/electronGun_pT_0_50",
                     "ne": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/recoBIB/neutronGun_E_0*",},
         "labelname": {  "ph": "Photon",
                         "mu": "Muon",
@@ -170,7 +171,7 @@ h_2d_nVsRelEsumAnyPFO = ROOT.TH2F("h_2d_nVsRelEAnyPFO", "h_2d_nVsRelEAnyPFO", 50
 # ############## LOOP OVER EVENTS AND FILL HISTOGRAMS  #############################
 # Loop over events
 reader = pyLCIO.IOIMPL.LCFactory.getInstance().createLCReader()
-reader.setReadCollectionNames(["MCParticle", "PandoraPFOs", "SiTracks_Refitted"])
+reader.setReadCollectionNames(["MCParticle", "PandoraPFOs", "SiTracks", "PandoraClusters"])#_Refitted"])
 i = 0
 for f in fnames:
     reader.open(f)
@@ -183,7 +184,8 @@ for f in fnames:
         # Get the collections we care about
         mcpCollection = event.getCollection("MCParticle")
         pfoCollection = event.getCollection("PandoraPFOs")
-        trkCollection = event.getCollection("SiTracks_Refitted")
+        trkCollection = event.getCollection("SiTracks")#_Refitted")
+        cluCollection = event.getCollection("PandoraClusters")
 
         # Make counter variables
         n_mcp_ob = 0
@@ -194,9 +196,11 @@ for f in fnames:
         has_mcp_ob = False
         has_pfo_ob = False
         has_trk_ob = False
+        has_clu_ob = False
         my_pfo_ob = 0
         my_trk_ob = 0
         my_mcp_ob = 0
+        my_clu_ob = 0
 
         # Loop over the truth objects and fill histograms
         for mcp in mcpCollection:
@@ -251,6 +255,11 @@ for f in fnames:
             for j, trk in enumerate(trkCollection):
                 trk.tlv = getTrackTLV(trk)
                 print(f"Track {j}: pT {trk_tlv.Perp()}")
+
+        # Also look for matched clusters
+        #for clu in cluCollection:
+        # TODO: finish this. The issue is that I need to check about getting a TLV (look at other code)
+
 
         #if n_matched_pfo_ob > 1: print("Found multiple matched PFOs:", n_matched_pfo_ob)
         hists["trk_n"].Fill(len(trkCollection))

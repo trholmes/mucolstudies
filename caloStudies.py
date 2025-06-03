@@ -23,7 +23,7 @@ append = "rose3"
 # Set up things for each object
 settings = {
         "fnames": {
-                    "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun*",
+                    "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/reco/photonGun*",
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/photonGun*",
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun*",
                     "mu": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun*",
@@ -74,7 +74,7 @@ def getClusterEta(cluster):
 # This is an algorithmic way of making a bunch of histograms and storing them in a dictionary
 variables = {}
 #variables["pt"] =  {"nbins": 30, "xmin": 0, "xmax": 3000,   "title": "p_{T} [GeV]"}
-variables["E"] =   {"nbins": 50, "xmin": 0, "xmax": 1000,   "title": "E [GeV]"}
+variables["E"] =   {"nbins": 50, "xmin": 0, "xmax": 5000,   "title": "E [GeV]"}
 #variables["eta"] = {"nbins": 30, "xmin": -3, "xmax": 3,     "title": "#eta"}
 #variables["phi"] = {"nbins": 30, "xmin": -3.5, "xmax": 3.5, "title": "#phi"}
 #variables["n"] =   {"nbins": 20, "xmin": 0, "xmax": 20,     "title": "n"}
@@ -120,14 +120,18 @@ for f in fnames:
         pfoCollection = event.getCollection("PandoraPFOs")
         simCollection_b = event.getCollection("ECalBarrelCollection")
         simCollection_e = event.getCollection("ECalEndcapCollection")
-        try: digCollection_b = event.getCollection("EcalBarrelCollectionDigi")
-        except: digCollection_b = None
-        try: digCollection_e = event.getCollection("EcalEndcapCollectionDigi")
-        except: digCollection_e = None
-        try: recCollection_b = event.getCollection("EcalBarrelCollectionRec")
-        except: recCollection_b = None
-        try: recCollection_e = event.getCollection("EcalEndcapCollectionRec")
-        except: recCollection_e = None
+        #try:
+        digCollection_b = event.getCollection("EcalBarrelCollectionDigi")
+        #except: digCollection_b = None
+        #try:
+        digCollection_e = event.getCollection("EcalEndcapCollectionDigi")
+        #except: digCollection_e = None
+        #try:
+        recCollection_b = event.getCollection("EcalBarrelCollectionRec")
+        #except: recCollection_b = None
+        #try:
+        recCollection_e = event.getCollection("EcalEndcapCollectionRec")
+        #except: recCollection_e = None
         cluCollection = event.getCollection("PandoraClusters")
 
         # Make counter variables
