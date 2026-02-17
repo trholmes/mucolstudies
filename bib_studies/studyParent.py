@@ -153,7 +153,59 @@ def main():
 
     # Unique parents defined by unique z_mu values
     # Also compute particles-per-parent = counts per unique z
-    unique_z, counts_per_parent = np.unique(z_particles, return_counts=True)
+    #unique_z, counts_per_parent = np.unique(z_particles, return_counts=True)
+
+	# Fix to make sure this doesn't merge parents across files
+
+    # --- NEW: parent identity = (file, z_mu) ---
+	# Build the distribution of "BIB particles per parent" without merging z_mu across files.
+	# Each file contributes its own set of parents (unique z_mu values within that file).
+
+    counts_per_parent_list = []  # list of arrays, one per file
+
+    for fin in args.files_in:
+	    z_this_file = []
+	    n_read_file = 0
+
+	    for chunk in iter_records(fin):
+		    if args.max_lines is not None:
+			    remaining = args.max_lines - n_read_file
+			    if remaining <= 0:
+				    break
+			    if chunk.size > remaining:
+				    chunk = chunk[:remaining]
+
+		    z = chunk["z_mu"].astype(np.float64)
+		    if args.z_round is not None:
+			    z = np.round(z, args.z_round)
+
+		    z_this_file.append(z)
+		    n_read_file += chunk.size
+
+	    if not z_this_file:
+		    continue
+
+	    z_this_file = np.concatenate(z_this_file)
+
+	    # parent muons within this file are unique z_mu values *in this file*
+	    # counts are "BIB particles per parent" for parents in this file
+	    _, counts_this_file = np.unique(z_this_file, return_counts=True)
+	    counts_per_parent_list.append(counts_this_file)
+
+    if not counts_per_parent_list:
+	    raise RuntimeError("No data found to compute per-parent counts.")
+
+    counts_per_parent = np.concatenate(counts_per_parent_list)
+
+    unique_z_list = []
+
+    for fin in args.files_in:
+	    # ... same per-file reading as above to build z_this_file ...
+	    uz = np.unique(z_this_file)
+	    unique_z_list.append(uz)
+
+    unique_z = np.concatenate(unique_z_list)  # NOTE: duplicates across files are preserved
+
 
     # (2) Parent-weighted: # unique parent muons vs z_mu (one per unique z)
     hist_step(
