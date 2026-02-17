@@ -12,34 +12,59 @@ exec(open("./plotHelper.py").read())
 ROOT.gROOT.SetBatch()
 
 # Set up some options
-max_events = -1
-obj_type = "ph"
+max_events = 10
+obj_type = "je"
 magnetic_field = 5.00
 calibration_mip = 0.0001575
-calibration_mip_to_reco = 0.00641222630095
+#calibration_mip_to_reco = 0.00641222630095
+calibration_mip_to_reco = 0.0066150 # Value used in v3
 sampling_scaling = calibration_mip_to_reco/calibration_mip
-append = "rose3"
+
+hcal_calibration_mip = 0.0004725
+hcal_calibration_mip_to_reco = 0.024625
+hcal_sampling_scaling = hcal_calibration_mip_to_reco/hcal_calibration_mip
+
+append = "phil"
 
 # Set up things for each object
 settings = {
         "fnames": {
-                    "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/reco/photonGun*",
+                    "ph": "/data/fmeloni/DataMuC_MAIA_v0/v5/reco/photonGun*",
+                    #"ph": "/data/fmeloni/DataMuC_MAIA_v0/v4/photonGun*",
+                    #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/reco/photonGun*",
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/photonGun*",
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun*",
-                    "mu": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun*",
-                    "el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*"},
+                    "mu": "/data/fmeloni/DataMuC_MAIA_v0/v5/reco/muonGun*",
+                    "el": "/data/fmeloni/DataMuC_MAIA_v0/v5/reco/electronGun*",
+                    "ne": "/data/fmeloni/DataMuC_MAIA_v0/v5/reco/neutronGun*",
+                    #"je": "/data/fmeloni/DataMuC_MAIA_v0/v5/reco/dijet_mjj*",
+                    "je": "/phchang/data/mumu_ZH*",
+                    "pi": "/data/fmeloni/DataMuC_MAIA_v0/v5/reco/pionGun*",},
+                    #"pi": "/data/fmeloni/DataMuC_MAIA_v0/v4/pionGun*",},
         "labelname": {  "ph": "Photon",
                         "mu": "Muon",
-                        "el": "Electron"},
+                        "el": "Electron",
+                        "ne": "Neutron",
+                        "je": "Jet",
+                        "pi": "Pion"},
         "plotdir":{ "ph": "photons",
                     "mu": "muons",
-                    "el": "electrons"},
+                    "el": "electrons",
+                    "ne": "neutrons",
+                    "je": "jets",
+                    "pi": "pions"},
         "pdgid":  { "ph": 22,
                     "mu": 13,
-                    "el": 11},
+                    "el": 11,
+                    "ne": 2112,
+                    "je": 0, #FIXME
+                    "pi": 211},
         "mass":   { "ph": 0,
                     "mu": 0.106,
-                    "el": 0.000511}
+                    "el": 0.000511,
+                    "ne": 0.939,
+                    "je": 0, #FIXME
+                    "pi": 0.1396}
 }
 print("Running on", settings["labelname"][obj_type])
 
@@ -48,7 +73,8 @@ print("Running on", settings["labelname"][obj_type])
 samples = glob.glob(settings["fnames"][obj_type])
 fnames = []
 for s in samples:
-    fnames += glob.glob(f"{s}/*.slcio")
+    print(s)
+    fnames += glob.glob(f"{s}/*reco*.slcio")
 print("Found %i files."%len(fnames))
 
 # Define good particle
@@ -74,7 +100,7 @@ def getClusterEta(cluster):
 # This is an algorithmic way of making a bunch of histograms and storing them in a dictionary
 variables = {}
 #variables["pt"] =  {"nbins": 30, "xmin": 0, "xmax": 3000,   "title": "p_{T} [GeV]"}
-variables["E"] =   {"nbins": 50, "xmin": 0, "xmax": 5000,   "title": "E [GeV]"}
+variables["E"] =   {"nbins": 50, "xmin": 0, "xmax": 10000,   "title": "E [GeV]"}
 #variables["eta"] = {"nbins": 30, "xmin": -3, "xmax": 3,     "title": "#eta"}
 #variables["phi"] = {"nbins": 30, "xmin": -3.5, "xmax": 3.5, "title": "#phi"}
 #variables["n"] =   {"nbins": 20, "xmin": 0, "xmax": 20,     "title": "n"}
@@ -84,7 +110,7 @@ objects = {}
 objects["mcp"] = f"True {settings['labelname'][obj_type]}"
 objects["sim"] = "Sim Calorimeter"
 objects["dig"] = "Digi Calorimeter"
-objects["rec"] = "Reco Calorimeter"
+objects["rec"] = "Selected Calorimeter"
 objects["clu"] = "Matched Cluster"
 objects["pfo"] = f"Reconstructed {settings['labelname'][obj_type]}"
 
@@ -105,7 +131,7 @@ for obj in objects:
 # ############## LOOP OVER EVENTS AND FILL HISTOGRAMS  #############################
 # Loop over events
 reader = pyLCIO.IOIMPL.LCFactory.getInstance().createLCReader()
-reader.setReadCollectionNames(["MCParticle", "PandoraPFOs", "ECalBarrelCollection", "ECalEndcapCollection", "EcalBarrelCollectionDigi", "EcalEndcapCollectionDigi", "EcalBarrelCollectionRec", "EcalEndcapCollectionRec", "PandoraClusters"])
+#reader.setReadCollectionNames(["MCParticle", "PandoraPFOs", "ECalBarrelCollection", "ECalEndcapCollection", "EcalBarrelCollectionDigi", "EcalEndcapCollectionDigi", "EcalBarrelCollectionRec", "EcalEndcapCollectionRec", "PandoraClusters"])
 i = 0
 for f in fnames:
     reader.open(f)
@@ -113,26 +139,47 @@ for f in fnames:
 
     for event in reader:
         if max_events > 0 and i >= max_events: break
-        if i%100 == 0: print("Processing event %i."%i)
+        #if i%100 == 0: print("Processing event %i."%i)
+        print("Processing event %i."%i)
 
         # Get the collections we care about
         mcpCollection = event.getCollection("MCParticle")
-        pfoCollection = event.getCollection("PandoraPFOs")
+        try: pfoCollection = event.getCollection("PandoraPFOs")
+        except: pfoCollection = []
         simCollection_b = event.getCollection("ECalBarrelCollection")
         simCollection_e = event.getCollection("ECalEndcapCollection")
-        #try:
-        digCollection_b = event.getCollection("EcalBarrelCollectionDigi")
-        #except: digCollection_b = None
-        #try:
-        digCollection_e = event.getCollection("EcalEndcapCollectionDigi")
-        #except: digCollection_e = None
-        #try:
-        recCollection_b = event.getCollection("EcalBarrelCollectionRec")
-        #except: recCollection_b = None
-        #try:
-        recCollection_e = event.getCollection("EcalEndcapCollectionRec")
-        #except: recCollection_e = None
+        try:
+            digCollection_b = event.getCollection("EcalBarrelCollectionDigi")
+        except: digCollection_b = None
+        try:
+            digCollection_e = event.getCollection("EcalEndcapCollectionDigi")
+        except: digCollection_e = None
+        try:
+            recCollection_b = event.getCollection("EcalBarrelCollectionSel")
+        except: recCollection_b = None
+        try:
+            recCollection_e = event.getCollection("EcalEndcapCollectionSel")
+        except: recCollection_e = None
+
         cluCollection = event.getCollection("PandoraClusters")
+
+
+        try: hsimCollection_b = event.getCollection("HCalBarrelCollection")
+        except: hsimCollection_b = None
+        try: hsimCollection_e = event.getCollection("HCalEndcapCollection")
+        except: hsimCollection_e = None
+        try:
+            hdigCollection_b = event.getCollection("HcalBarrelCollectionDigi")
+        except: hdigCollection_b = None
+        try:
+            hdigCollection_e = event.getCollection("HcalEndcapCollectionDigi")
+        except: hdigCollection_e = None
+        try:
+            hrecCollection_b = event.getCollection("HcalBarrelCollectionConed")
+        except: hrecCollection_b = None
+        try:
+            hrecCollection_e = event.getCollection("HcalEndcapCollectionConed")
+        except: hrecCollection_e = None
 
         # Make counter variables
         n_mcp_ob = 0
@@ -149,10 +196,24 @@ for f in fnames:
         for mcp in mcpCollection:
             mcp_tlv = getTLV(mcp)
 
-            if abs(mcp.getPDG())==settings['pdgid'][obj_type] and mcp.getGeneratorStatus()==1 and isGood(mcp_tlv):
+            #TODO make this hack less stupid
+            if obj_type == "je":
+                #if mcp.getGeneratorStatus()==23 and isGood(mcp_tlv):
+                if mcp.getPDG()==25 and mcp.getGeneratorStatus()==22:
+                    has_mcp_ob = True
+                    n_mcp_ob += 1
+                    if n_mcp_ob > 1 and obj_type == "je":
+                        my_mcp_ob.SetE(my_mcp_ob.E()+mcp_tlv.E())
+                    else:
+                        my_mcp_ob = mcp_tlv
+
+            elif abs(mcp.getPDG())==settings['pdgid'][obj_type] and mcp.getGeneratorStatus()==1 and isGood(mcp_tlv):
                 has_mcp_ob = True
                 n_mcp_ob += 1
                 my_mcp_ob = mcp_tlv
+
+        if n_mcp_ob == 0: continue
+
 
         # Loop over the reconstructed clusters and fill histograms
         # If there are multiple, it'll keep the one with the higher pT
@@ -190,6 +251,10 @@ for f in fnames:
             for sim in simCollection_b: sim_E += sim.getEnergy()*sampling_scaling
         if simCollection_e:
             for sim in simCollection_e: sim_E += sim.getEnergy()*sampling_scaling
+        if hsimCollection_e:
+            for sim in hsimCollection_e: sim_E += sim.getEnergy()*hcal_sampling_scaling
+        if hsimCollection_b:
+            for sim in hsimCollection_b: sim_E += sim.getEnergy()*hcal_sampling_scaling
 
         # Loop over digi hits and sum
         dig_E = 0
@@ -200,6 +265,10 @@ for f in fnames:
             for dig in digCollection_b: dig_E += dig.getEnergy()*calibration_mip_to_reco
         if digCollection_e:
             for dig in digCollection_e: dig_E += dig.getEnergy()*calibration_mip_to_reco
+        if hdigCollection_e:
+            for dig in hdigCollection_e: dig_E += dig.getEnergy()*calibration_mip_to_reco #FIXME this was hcal_calibration_mip_to_reco
+        if hdigCollection_b:
+            for dig in hdigCollection_b: dig_E += dig.getEnergy()*calibration_mip_to_reco
 
         # Loop over reco hits and sum
         rec_E = 0
@@ -208,6 +277,10 @@ for f in fnames:
             for rec in recCollection_b: rec_E += rec.getEnergy()
         if recCollection_e:
             for rec in recCollection_e: rec_E += rec.getEnergy()
+        if hrecCollection_e:
+            for rec in hrecCollection_e: rec_E += rec.getEnergy()
+        if hrecCollection_b:
+            for rec in hrecCollection_b: rec_E += rec.getEnergy()
 
         # Print out for detailed studies
         '''
@@ -221,7 +294,7 @@ for f in fnames:
         #print("total energies - mcp:", my_mcp_ob.E(), "simx35:", sim_E, "digi*calib:", dig_E*calibration_mip, "reco:", rec_E)
 
 
-        if n_pfo_ob > 1: print("Found multiple PFOs:", n_pfo_ob)
+        #if n_pfo_ob > 1: print("Found multiple PFOs:", n_pfo_ob)
 
         # Only make plots for events with isGood mcps
         if has_mcp_ob:
@@ -289,5 +362,5 @@ for hist in hists2d:
     hists2d[hist].GetYaxis().SetTitle(objects[obj]+" "+variables[var]["title"])
     c.SetRightMargin(0.18)
     c.SetLogz()
-    c.SaveAs(f"plots/calo/{hist}_{append}.png")
+    c.SaveAs(f"plots/calo/{hist}_{obj_type}_{append}.png")
 

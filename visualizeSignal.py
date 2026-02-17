@@ -12,25 +12,34 @@ exec(open("./plotHelper.py").read())
 ROOT.gROOT.SetBatch()
 
 #infiles = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/v2/reco/neutronGun_E_50_250/*")
-infiles = glob.glob("/data/fmeloni/DataMuC_MAIA_v0/v2/reco/neutronGun_E_50_250/*")
+#infiles = glob.glob("/data/fmeloni/DataMuC_MAIA_v0/v4/neutronGun_E_50_250/*")
+#infiles = glob.glob("/data/fmeloni/DataMuC_MAIA_v0/v4/pionGun_pT_0_50/*")
+#infiles = glob.glob("/data/fmeloni/DataMuC_MAIA_v0/v5/reco/dijet_mjj_10000/*")
+infiles = glob.glob("/phchang/data/mumu_ZH/*reco_0.slcio")
+#infiles = glob.glob("/data/fmeloni/DataMuC_MAIA_v0/v3/photonGun_E_50_250/*")
 #infiles = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/v2/reco/photonGun_E_50_250/*")
 #infiles = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/v0/reco/electronGun_pT_50_250/*")
 #infiles = glob.glob("/data/fmeloni/LegacyProductions/before29Jul23/DataMuC_MuColl10_v0A/photonGun_500/reco/*")
-append = "_neutron"
+append = "_phil"
 makeTransparent = False
 
 reader = pyLCIO.IOIMPL.LCFactory.getInstance().createLCReader()
-reader.setReadCollectionNames(["EcalBarrelCollectionSel", "EcalEndcapCollectionSel", "HcalBarrelCollectionConed", "HcalEndcapCollectionConed", "MCParticle"])
+#reader.setReadCollectionNames(["EcalBarrelCollectionSel", "EcalEndcapCollectionSel", "HcalBarrelCollectionConed", "HcalEndcapCollectionConed", "MCParticle"])
 #reader.setReadCollectionNames(["ECalBarrelCollection", "ECalEndcapCollection", "MCParticle", "HCalBarrelCollection", "HCalEndcapCollection", "VertexBarrelCollection", "VertexEndcapCollection", "InnerTrackerBarrelCollection", "InnerTrackerEndcapCollection", "OuterTrackerBarrelCollection", "OuterTrackerEndcapCollection"])
 #reader.setReadCollectionNames(["MCParticle", "PandoraPFOs", "ECalBarrelCollection", "ECalEndcapCollection", "EcalBarrelCollectionDigi", "EcalEndcapCollectionDigi", "EcalBarrelCollectionRec", "EcalEndcapCollectionRec", "PandoraClusters"])
 
-max_events = 2
+max_events = 10
+print_mcp_info = True
+draw_mcp_lines = True
+min_mcp_E = 0.01
+is_jet = True
 
 i_event = 0
 for infile in infiles:
     if i_event >= max_events: break
     reader.open(infile)
-    for event in reader:
+    print(infile)
+    for i, event in enumerate(reader):
 
         if i_event >= max_events: break
 
@@ -50,34 +59,51 @@ for infile in infiles:
         #"rZ_tracker": ROOT.TH2D("rZ_tracker", "rZ_tracker", 500, -2300, 2300, 500, 0, 1700),
         }
 
-        try: ecalb = event.getCollection("EcalBarrelCollectionSel")
+        pfos = event.getCollection("PandoraPFOs")
+
+        try: ecalb = event.getCollection("EcalBarrelCollectionRec")
+        #try: ecalb = event.getCollection("EcalBarrelCollectionConed")
         except: ecalb = []
-        try: ecale = event.getCollection("EcalEndcapCollectionSel")
+        try: ecale = event.getCollection("EcalEndcapCollectionRec")
+        #try: ecale = event.getCollection("EcalEndcapCollectionConed")
         except: ecale = []
-        try: hcalb = event.getCollection("HcalBarrelCollectionConed")
+        try: hcalb = event.getCollection("HcalBarrelCollectionRec")
+        #try: hcalb = event.getCollection("HcalBarrelCollectionConed")
         except: hcalb = []
-        try: hcale = event.getCollection("HcalEndcapCollectionConed")
+        try: hcale = event.getCollection("HcalEndcapCollectionRec")
+        #try: hcale = event.getCollection("HcalEndcapCollectionConed")
         except: hcale = []
         mcpCollection = event.getCollection("MCParticle")
 
         print("Event", i_event)
+        print(infile)
+        lines = []
         E = 0
         for mcp in mcpCollection:
             mcp_tlv = getTLV(mcp)
-            if mcp_tlv.E() > 0.01:
-                print(f"\tMCP: pdgid:{mcp.getPDG()} E: {mcp_tlv.E():.2f} GeV prodR: {(mcp.getVertex()[0]**2 + mcp.getVertex()[1]**2)**.5:.2f} status: {mcp.getGeneratorStatus()}")
+            if draw_mcp_lines and mcp_tlv.E() > min_mcp_E:
+                lines.append([mcp.getVertex(), mcp.getEndpoint()])
+            if print_mcp_info and mcp_tlv.E() > min_mcp_E:
+                print(f"\tMCP: pdgid:{mcp.getPDG()} E: {mcp_tlv.E():.2f} GeV eta: {mcp_tlv.Eta():.2f} prodR: {(mcp.getVertex()[0]**2 + mcp.getVertex()[1]**2)**.5:.2f} status: {mcp.getGeneratorStatus()} xyz: {mcp.getVertex()[0]:.2f}, {mcp.getVertex()[1]:.2f}, {mcp.getVertex()[2]:.2f}, time: {mcp.getTime():.2f}")
+                print(f"\t\tMCP end xyz: {mcp.getEndpoint()[0]:.2f}, {mcp.getEndpoint()[1]:.2f}, {mcp.getEndpoint()[2]:.2f}, E: {(mcp.getMomentumAtEndpoint()[0]**2 + mcp.getMomentumAtEndpoint()[1]**2 + mcp.getMomentumAtEndpoint()[2]**2)**0.5:.2f}")
                 try:
-                    parent = mcp.getParents()[0]
-                    print(f"\t\tparent: {parent.getPDG()}, {parent.getEnergy():.2f} GeV")
+                    parents = mcp.getParents()
+                    if parents:
+                        for parent in parents:
+                            print(f"\t\tparent: pdgid:{parent.getPDG()} E: {parent.getEnergy():.2f} GeV prodR: {(parent.getVertex()[0]**2 + parent.getVertex()[1]**2)**.5:.2f} status: {mcp.getGeneratorStatus()} xyz: {parent.getVertex()[0]:.2f}, {parent.getVertex()[1]:.2f}, {parent.getVertex()[2]:.2f}")
                 except:
-                    children = mcp.getDaughters()
-                    for child in children:
-                        print(f"\t\tchild: {child.getPDG()}, {child.getEnergy():.2f} GeV")
-            if mcp.getGeneratorStatus()==1:# and isGood(mcp_tlv):
+                    pass
+                #children = mcp.getDaughters()
+                #for child in children:
+                #    print(f"\t\tchild: {child.getPDG()}, {child.getEnergy():.2f} GeV")
+            if (is_jet and mcp.getGeneratorStatus()==23) or (not is_jet and mcp.getGeneratorStatus()==1):# and isGood(mcp_tlv):
                 #print("E", mcp_tlv.E())
-                E = mcp_tlv.E()
+                E += mcp_tlv.E()
         #if E < 200: continue
 
+
+        ecal_total = 0
+        hcal_total = 0
         for simhit in ecalb:
             pos = simhit.getPosition()
             vpos = ROOT.TVector3(pos[0], pos[1], pos[2])
@@ -88,6 +114,7 @@ for infile in infiles:
             hists["xy_cal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_cal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
             hists["phiEta_cal"].Fill(vpos.Eta(), vpos.Phi(), simhit.getEnergy())
+            ecal_total+=simhit.getEnergy()
         for simhit in ecale:
             pos = simhit.getPosition()
             vpos = ROOT.TVector3(pos[0], pos[1], pos[2])
@@ -98,6 +125,7 @@ for infile in infiles:
             hists["xy_cal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_cal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
             hists["phiEta_cal"].Fill(vpos.Eta(), vpos.Phi(), simhit.getEnergy())
+            ecal_total+=simhit.getEnergy()
         for simhit in hcalb:
             pos = simhit.getPosition()
             vpos = ROOT.TVector3(pos[0], pos[1], pos[2])
@@ -108,6 +136,7 @@ for infile in infiles:
             hists["xy_cal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_cal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
             hists["phiEta_cal"].Fill(vpos.Eta(), vpos.Phi(), simhit.getEnergy())
+            hcal_total+=simhit.getEnergy()
         for simhit in hcale:
             pos = simhit.getPosition()
             vpos = ROOT.TVector3(pos[0], pos[1], pos[2])
@@ -118,15 +147,33 @@ for infile in infiles:
             hists["xy_cal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_cal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
             hists["phiEta_cal"].Fill(vpos.Eta(), vpos.Phi(), simhit.getEnergy())
+            hcal_total+=simhit.getEnergy()
+
+        #if (hcal_total+ecal_total)/E > 0.1: continue
+
+        print(f"total ECAL: {ecal_total:.2f}, total HCAL: {hcal_total:.2f}")
+        print(f"Calo E / True E: {(hcal_total+ecal_total)/E:.2f}")
+        #for pfo in pfos:
+        #    if True: #pfo.getEnergy() > 40:
+        #        print(f"pfo E: {pfo.getEnergy()}, pdgid: {pfo.getType()}")
 
         for h in hists:
-            print(h, hists[h].Integral())
+            #print(h, hists[h].Integral())
+
+            if "_cal" not in h: continue
 
             can = ROOT.TCanvas()
             can.SetRightMargin(0.18)
 
             hists[h].Draw("colz")
             if h.startswith("rZ"):
+                if draw_mcp_lines:
+                    rlines = []
+                    for i_line,line in enumerate(lines):
+                        rlines.append(ROOT.TLine(line[0][2], (line[0][0]**2+line[0][1]**2)**.5, line[1][2], (line[1][0]**2+line[1][1]**2)**.5))
+                        rlines[i_line].SetLineWidth(2)
+                        rlines[i_line].SetLineColor(ROOT.kMagenta)
+                        rlines[i_line].Draw()
                 hists[h].GetXaxis().SetTitle("z [mm]")
                 hists[h].GetYaxis().SetTitle("R [mm]")
             elif h.startswith("xy"):
@@ -145,8 +192,12 @@ for infile in infiles:
             latex.SetNDC() # Use normalized device coordinates
             latex.SetTextAlign(31) # Align right (3), top (1)
             latex.SetTextSize(0.04) # Adjust size as needed
-            latex.DrawLatex(0.75, 0.85, f"Neutron Energy: {E:.1f} GeV")
+            latex.DrawLatex(0.75, 0.85, f"True Energy: {E:.1f} GeV")
             latex.DrawLatex(0.75, 0.80, f"Calo Energy: {hists[h].Integral():.1f} GeV")
+            latex.DrawLatex(0.75, 0.75, f"Fraction Reco: {hists[h].Integral()/E:.2f}")
+
+            latex.DrawLatex(0.75, 0.70, f"ECAL Fraction: {safeDivide(ecal_total,(ecal_total+hcal_total)):.2f}")
+            latex.DrawLatex(0.75, 0.65, f"File {infile.split('_')[-1].split('.')[0]}, event {i}")
 
             if makeTransparent:
                 can.SetFillColor(0)
