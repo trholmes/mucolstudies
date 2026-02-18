@@ -162,6 +162,7 @@ def main():
 	# Each file contributes its own set of parents (unique z_mu values within that file).
 
     counts_per_parent_list = []  # list of arrays, one per file
+    unique_z_list = []
 
     for fin in args.files_in:
 	    z_this_file = []
@@ -186,6 +187,8 @@ def main():
 		    continue
 
 	    z_this_file = np.concatenate(z_this_file)
+	    uz = np.unique(z_this_file)
+	    unique_z_list.append(uz)
 
 	    # parent muons within this file are unique z_mu values *in this file*
 	    # counts are "BIB particles per parent" for parents in this file
@@ -196,16 +199,10 @@ def main():
 	    raise RuntimeError("No data found to compute per-parent counts.")
 
     counts_per_parent = np.concatenate(counts_per_parent_list)
-
-    unique_z_list = []
-
-    for fin in args.files_in:
-	    # ... same per-file reading as above to build z_this_file ...
-	    uz = np.unique(z_this_file)
-	    unique_z_list.append(uz)
-
     unique_z = np.concatenate(unique_z_list)  # NOTE: duplicates across files are preserved
 
+    # For studying increments
+    np.savetxt("unique_z.csv", np.sort(unique_z), delimiter=",", header="z_mu", comments="")
 
     # (2) Parent-weighted: # unique parent muons vs z_mu (one per unique z)
     hist_step(
