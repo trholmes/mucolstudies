@@ -12,8 +12,8 @@ exec(open("./plotHelper.py").read())
 ROOT.gROOT.SetBatch()
 
 # Set up some options
-max_events = -1
-obj_type = "el"
+max_events = 1000
+obj_type = "ne"
 magnetic_field = 5.00
 max_E = 50
 calibrate = False
@@ -35,7 +35,8 @@ settings = {
                     #"el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/electronGun*",
                     #"el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*"},
                     "el": "/data/fmeloni/DataMuC_MAIA_v0/v2/reco/electronGun_pT_0_50",
-                    "ne": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/recoBIB/neutronGun_E_0*",},
+                    "ne": "/data/fmeloni/DataMuC_MAIA_v0/v8/recoBIB/neutronGun_E_0_*",},
+                    #"ne": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/recoBIB/neutronGun_E_0*",},
         "labelname": {  "ph": "Photon",
                         "mu": "Muon",
                         "el": "Electron",

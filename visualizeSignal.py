@@ -15,12 +15,14 @@ ROOT.gROOT.SetBatch()
 #infiles = glob.glob("/data/fmeloni/DataMuC_MAIA_v0/v4/neutronGun_E_50_250/*")
 #infiles = glob.glob("/data/fmeloni/DataMuC_MAIA_v0/v4/pionGun_pT_0_50/*")
 #infiles = glob.glob("/data/fmeloni/DataMuC_MAIA_v0/v5/reco/dijet_mjj_10000/*")
-infiles = glob.glob("/phchang/data/mumu_ZH/*reco_0.slcio")
+#infiles = glob.glob("/phchang/data/mumu_ZH/*reco_0.slcio")
+infiles = glob.glob("/data/fmeloni/DataMuC_MAIA_v0/v7/recoBIB/neutronGun_E_0_50/*.slcio")
+#infiles = glob.glob("/data/fmeloni/DataMuC_MAIA_v0/v8/recoBIB/neutronGun_E_0_50/*.slcio")
 #infiles = glob.glob("/data/fmeloni/DataMuC_MAIA_v0/v3/photonGun_E_50_250/*")
 #infiles = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/v2/reco/photonGun_E_50_250/*")
 #infiles = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/v0/reco/electronGun_pT_50_250/*")
 #infiles = glob.glob("/data/fmeloni/LegacyProductions/before29Jul23/DataMuC_MuColl10_v0A/photonGun_500/reco/*")
-append = "_phil"
+append = "_v7"
 makeTransparent = False
 
 reader = pyLCIO.IOIMPL.LCFactory.getInstance().createLCReader()
@@ -32,7 +34,7 @@ max_events = 10
 print_mcp_info = True
 draw_mcp_lines = True
 min_mcp_E = 0.01
-is_jet = True
+is_jet = False
 
 i_event = 0
 for infile in infiles:
@@ -47,13 +49,15 @@ for infile in infiles:
         "rZ_cal": ROOT.TH2D("rZ_cal", "rZ_cal", 100, -5000, 5000, 100, 0, 5000),
         "xy_cal": ROOT.TH2D("xy_cal", "xy_cal", 100, -5000, 5000, 100, -5000, 5000),
         "phiZ_cal": ROOT.TH2D("phiZ_cal", "phiZ_cal", 100, -5000, 5000, 100, -3.2, 3.2),
-        "phiEta_cal": ROOT.TH2D("phiEta_cal", "phiEta_cal", 100, -2.5, 2.5, 100, -3.2, 3.2),
-        "rZ_hcal": ROOT.TH2D("rZ_hcal", "rZ_hcal", 100, -5000, 5000, 100, 2100, 5000),
+        "phiEta_cal": ROOT.TH2D("phiEta_cal", "phiEta_cal", 100, -3.0, 3.0, 100, -3.2, 3.2),
+        "rZ_hcal": ROOT.TH2D("rZ_hcal", "rZ_hcal", 100, -5000, 5000, 100, 0, 5000),
         "xy_hcal": ROOT.TH2D("xy_hcal", "xy_hcal", 100, -5000, 5000, 100, -5000, 5000),
         "phiZ_hcal": ROOT.TH2D("phiZ_hcal", "phiZ_hcal", 100, -5000, 5000, 100, -3.2, 3.2),
+        "phiEta_hcal": ROOT.TH2D("phiEta_hcal", "phiEta_hcal", 100, -3.0, 3.0, 100, -3.2, 3.2),
         "rZ_ecal": ROOT.TH2D("rZ_ecal", "rZ_ecal", 100, -2000, 2000, 100, 1800, 2000),
         "xy_ecal": ROOT.TH2D("xy_ecal", "xy_ecal", 100, -2000, 2000, 100, -2000, 2000),
         "phiZ_ecal": ROOT.TH2D("phiZ_ecal", "phiZ_ecal", 100, -2000, 2000, 100, -3.2, 3.2),
+        "phiEta_ecal": ROOT.TH2D("phiEta_ecal", "phiEta_ecal", 100, -3.0, 3.0, 100, -3.2, 3.2),
         #"xy_ecal": ROOT.TH2D("xy_ecal", "xy_ecal", 100, -2000, 2000, 100, -3.1415, 3.1415),
         #"rZ_ecal": ROOT.TH2D("rZ_ecal", "rZ_ecal", 100, -3000, 3000, 100, 0, 2500),
         #"rZ_tracker": ROOT.TH2D("rZ_tracker", "rZ_tracker", 500, -2300, 2300, 500, 0, 1700),
@@ -61,16 +65,16 @@ for infile in infiles:
 
         pfos = event.getCollection("PandoraPFOs")
 
-        try: ecalb = event.getCollection("EcalBarrelCollectionRec")
+        try: ecalb = event.getCollection("EcalBarrelCollectionSel")
         #try: ecalb = event.getCollection("EcalBarrelCollectionConed")
         except: ecalb = []
-        try: ecale = event.getCollection("EcalEndcapCollectionRec")
+        try: ecale = event.getCollection("EcalEndcapCollectionSel")
         #try: ecale = event.getCollection("EcalEndcapCollectionConed")
         except: ecale = []
-        try: hcalb = event.getCollection("HcalBarrelCollectionRec")
+        try: hcalb = event.getCollection("HcalBarrelCollectionSel")
         #try: hcalb = event.getCollection("HcalBarrelCollectionConed")
         except: hcalb = []
-        try: hcale = event.getCollection("HcalEndcapCollectionRec")
+        try: hcale = event.getCollection("HcalEndcapCollectionSel")
         #try: hcale = event.getCollection("HcalEndcapCollectionConed")
         except: hcale = []
         mcpCollection = event.getCollection("MCParticle")
@@ -110,6 +114,7 @@ for infile in infiles:
             hists["rZ_ecal"].Fill(pos[2], math.sqrt(pos[0]**2+pos[1]**2), simhit.getEnergy())
             hists["xy_ecal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_ecal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
+            hists["phiEta_ecal"].Fill(vpos.Eta(), vpos.Phi(), simhit.getEnergy())
             hists["rZ_cal"].Fill(pos[2], math.sqrt(pos[0]**2+pos[1]**2), simhit.getEnergy())
             hists["xy_cal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_cal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
@@ -121,6 +126,7 @@ for infile in infiles:
             hists["rZ_ecal"].Fill(pos[2], math.sqrt(pos[0]**2+pos[1]**2), simhit.getEnergy())
             hists["xy_ecal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_ecal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
+            hists["phiEta_ecal"].Fill(vpos.Eta(), vpos.Phi(), simhit.getEnergy())
             hists["rZ_cal"].Fill(pos[2], math.sqrt(pos[0]**2+pos[1]**2), simhit.getEnergy())
             hists["xy_cal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_cal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
@@ -132,6 +138,7 @@ for infile in infiles:
             hists["rZ_hcal"].Fill(pos[2], math.sqrt(pos[0]**2+pos[1]**2), simhit.getEnergy())
             hists["xy_hcal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_hcal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
+            hists["phiEta_hcal"].Fill(vpos.Eta(), vpos.Phi(), simhit.getEnergy())
             hists["rZ_cal"].Fill(pos[2], math.sqrt(pos[0]**2+pos[1]**2), simhit.getEnergy())
             hists["xy_cal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_cal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
@@ -143,6 +150,7 @@ for infile in infiles:
             hists["rZ_hcal"].Fill(pos[2], math.sqrt(pos[0]**2+pos[1]**2), simhit.getEnergy())
             hists["xy_hcal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_hcal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
+            hists["phiEta_hcal"].Fill(vpos.Eta(), vpos.Phi(), simhit.getEnergy())
             hists["rZ_cal"].Fill(pos[2], math.sqrt(pos[0]**2+pos[1]**2), simhit.getEnergy())
             hists["xy_cal"].Fill(pos[0], pos[1], simhit.getEnergy())
             hists["phiZ_cal"].Fill(pos[2], math.atan2(pos[1],pos[0]), simhit.getEnergy())
@@ -160,10 +168,11 @@ for infile in infiles:
         for h in hists:
             #print(h, hists[h].Integral())
 
-            if "_cal" not in h: continue
+            #if "_cal" not in h: continue
 
             can = ROOT.TCanvas()
             can.SetRightMargin(0.18)
+            can.SetLeftMargin(0.18)
 
             hists[h].Draw("colz")
             if h.startswith("rZ"):
@@ -218,7 +227,7 @@ for infile in infiles:
 
             #hists[h].SetMinimum(0)
             #hists[h].SetMaximum(0.15)
-            if (h.startswith("phiEta") or h.startswith("rZ") or h.startswith("xy")) and "_cal" in h:
+            if (h.startswith("phiEta") or h.startswith("rZ") or h.startswith("xy")): # and "_cal" in h:
                 can.SetRealAspectRatio(1)
             can.SetLogz(0)
             can.SaveAs(f"plots/bib/tests/{i_event}_{h}_linear{append}.pdf")
