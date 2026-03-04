@@ -3,11 +3,34 @@
 Find parent-muon (PosZmu / z_mu) outliers with unusually many BIB particles,
 then print summary and make diagnostic plots per outlier parent.
 
-Added:
-  --log   -> log-y for 1D hists, log color scale (log-z) for 2D hist2d.
+Parent definition: unique z_mu values *within each file* (i.e. (file, z_mu)).
+
+For each outlier parent (N(BIB) > threshold), print:
+  - file found in
+  - z of parent muon
+  - number of outgoing particles (after any cuts)
+  - sum of |p| over resulting BIB particles
+
+Make plots (per outlier parent):
+  - distribution of momentum magnitude |p|
+  - distribution of PDGID (topK + Other)
+  - 2D histogram of r = sqrt(x^2+y^2) vs z
+
+Options:
+  --log     : log-y for 1D plots and log color scale (log-z) for 2D plots
+  --r-min R : only count/plot particles with r >= R [cm] (same r as in r_vs_z plot)
+  --z-round : round z_mu to N decimals before grouping (helps if z_mu should be discrete)
+
+Assumptions (matching the example fluka_remix style):
+  - Input binary record layout matches LINE_DT below
+  - E is kinetic energy [GeV]
+  - Momentum magnitude computed from kinetic energy T and mass m:
+        p = sqrt(T^2 + 2 T m)   (c = 1 units)
+  - fid is a FLUKA particle id mapped to PDG via bib_pdgs.FLUKA_PIDS
+  - Mass is from bib_pdgs.PDG_PROPS[pdgid] = (charge, mass)
 
 Usage:
-  python find_bib_parent_outliers.py file1.bin [file2.bin ...] --threshold 20000 --outdir outliers --log
+  python plotOutliers.py file1.bin [file2.bin ...] --threshold 20000 --outdir outliers --log --r-min 200
 """
 
 import argparse
@@ -104,16 +127,16 @@ def plot_r_vs_z(r_vals, z_vals, outpath: Path, title: str,
     fig, ax = plt.subplots(figsize=(8, 6))
 
     if logz:
-        # Use LogNorm for the color scale ("log z"). vmin=1 avoids log(0) issues from empty bins.
+        # LogNorm with vmin=1 avoids log(0) problems from empty bins
         h = ax.hist2d(
             z_vals, r_vals,
             bins=[bins_z, bins_r],
             norm=LogNorm(vmin=1)
         )
-        cbar = fig.colorbar(h[3], ax=ax, label="BIB particles / bin (log scale)")
+        fig.colorbar(h[3], ax=ax, label="BIB particles / bin (log scale)")
     else:
         h = ax.hist2d(z_vals, r_vals, bins=[bins_z, bins_r])
-        cbar = fig.colorbar(h[3], ax=ax, label="BIB particles / bin")
+        fig.colorbar(h[3], ax=ax, label="BIB particles / bin")
 
     ax.set_xlabel("Particle z [cm]")
     ax.set_ylabel("Particle r = sqrt(x^2 + y^2) [cm]")
@@ -139,6 +162,8 @@ def main():
                     help="Optional maximum number of records to read per file (debug)")
     ap.add_argument("--log", action="store_true",
                     help="Log-y for 1D plots and log color scale (log-z) for 2D plots")
+    ap.add_argument("--r-min", type=float, default=0.0,
+                    help="Only count/plot particles with r = sqrt(x^2+y^2) >= r-min [cm] (default: 0)")
     args = ap.parse_args()
 
     outdir = Path(args.outdir)
@@ -148,9 +173,9 @@ def main():
 
     for fin in args.files_in:
         fin_path = Path(fin)
-        #print(f"\n=== Scanning file: {fin_path} ===")
+        print(f"\n=== Scanning file: {fin_path} ===")
 
-        # Pass 1: count BIB per parent z_mu in THIS FILE
+        # -------- Pass 1: count BIB per parent z_mu (THIS FILE), applying r-min cut ----------
         counts = {}
         n_read = 0
 
@@ -166,27 +191,40 @@ def main():
             if args.z_round is not None:
                 z_mu = np.round(z_mu, args.z_round)
 
-            uz, c = np.unique(z_mu, return_counts=True)
+            # r-min cut uses same r as r_vs_z plot
+            x = chunk["x"].astype(np.float64)
+            y = chunk["y"].astype(np.float64)
+            r = np.sqrt(x * x + y * y)
+            mask_r = (r >= args.r_min)
+
+            z_mu_sel = z_mu[mask_r]
+            if z_mu_sel.size == 0:
+                n_read += chunk.size
+                continue
+
+            # accumulate counts per unique parent z_mu (within file)
+            uz, c = np.unique(z_mu_sel, return_counts=True)
             for z, cc in zip(uz, c):
                 counts[z] = counts.get(z, 0) + int(cc)
 
             n_read += chunk.size
 
         if not counts:
-            print("No records found.")
+            print("No records found (or all records failed r-min cut).")
             continue
 
+        # Identify outliers (per-file)
         outliers = sorted([z for z, c in counts.items() if c > args.threshold])
         if not outliers:
-            #print(f"No parents above threshold {args.threshold}. Max count was {max(counts.values())}.")
+            print(f"No parents above threshold {args.threshold}. Max count was {max(counts.values())}.")
             continue
 
         any_outliers = True
-        print(f"Found {len(outliers)} outlier parent(s) with N(BIB) > {args.threshold}:")
+        print(f"Found {len(outliers)} outlier parent(s) with N(BIB) > {args.threshold} (after r-min={args.r_min} cm cut):")
         for z in outliers:
             print(f"  z_mu={z} : N={counts[z]}")
 
-        # Pass 2: collect per-outlier particle data
+        # -------- Pass 2: collect per-outlier particle data (apply same r-min cut) ----------
         data = {z: {"p": [], "pdg": [], "r": [], "z": []} for z in outliers}
         outlier_set = set(outliers)
 
@@ -203,6 +241,7 @@ def main():
             if args.z_round is not None:
                 z_mu = np.round(z_mu, args.z_round)
 
+            # quickly select any candidates by z_mu
             mask_any = np.isin(z_mu, outliers)
             if not np.any(mask_any):
                 n_read_2 += chunk.size
@@ -210,6 +249,19 @@ def main():
 
             sub = chunk[mask_any]
             sub_zmu = z_mu[mask_any]
+
+            # r-min cut on subset
+            x = sub["x"].astype(np.float64)
+            y = sub["y"].astype(np.float64)
+            r = np.sqrt(x * x + y * y)
+            mask_r = (r >= args.r_min)
+            if not np.any(mask_r):
+                n_read_2 += chunk.size
+                continue
+
+            sub = sub[mask_r]
+            sub_zmu = sub_zmu[mask_r]
+            r = r[mask_r]  # keep aligned
 
             # FLUKA fid -> PDG
             fids = sub["fid"].astype(np.int32)
@@ -237,13 +289,11 @@ def main():
             pdg = pdg[known]
             e_kin = e_kin[known]
             masses = masses[known]
+            r = r[known]  # keep aligned after known-mass filter
 
             p_mag = np.sqrt(e_kin * e_kin + 2.0 * e_kin * masses)
 
-            x = sub["x"].astype(np.float64)
-            y = sub["y"].astype(np.float64)
             zpos = sub["z"].astype(np.float64)
-            r = np.sqrt(x * x + y * y)
 
             for z_parent in np.unique(sub_zmu):
                 if z_parent not in outlier_set:
@@ -256,11 +306,11 @@ def main():
 
             n_read_2 += chunk.size
 
-        # Report + plots per outlier parent
+        # -------- Report + plots per outlier parent ----------
         for z_parent in outliers:
             p = np.concatenate(data[z_parent]["p"]) if data[z_parent]["p"] else np.array([], dtype=np.float64)
             pdg = np.concatenate(data[z_parent]["pdg"]) if data[z_parent]["pdg"] else np.array([], dtype=np.int32)
-            r = np.concatenate(data[z_parent]["r"]) if data[z_parent]["r"] else np.array([], dtype=np.float64)
+            rvals = np.concatenate(data[z_parent]["r"]) if data[z_parent]["r"] else np.array([], dtype=np.float64)
             zpos = np.concatenate(data[z_parent]["z"]) if data[z_parent]["z"] else np.array([], dtype=np.float64)
 
             n_out = int(p.size)
@@ -269,29 +319,29 @@ def main():
             print("\n--- Outlier parent ---")
             print(f"File: {fin_path}")
             print(f"Parent z_mu (PosZmu): {z_parent}")
-            print(f"Number of outgoing BIB particles: {n_out}")
+            print(f"Number of outgoing BIB particles (after r-min={args.r_min} cm cut): {n_out}")
             print(f"Sum of |p| over outgoing BIB particles: {sum_p:.6g} GeV/c")
 
             tag = safe_tag(float(z_parent))
-            base = outdir / f"{fin_path.stem}_zmu_{tag}"
+            base = outdir / f"{fin_path.stem}_zmu_{tag}_rmin_{args.r_min:g}"
 
             plot_momentum(
                 p, Path(str(base) + "_p_mag.png"),
-                title=f"|p| distribution (parent z_mu={z_parent} cm; N={n_out})",
+                title=f"|p| distribution (parent z_mu={z_parent} cm; N={n_out}; r>={args.r_min} cm)",
                 logy=args.log
             )
 
             plot_pdg_bar(
                 pdg, Path(str(base) + "_pdg.png"),
-                title=f"PDGID distribution (parent z_mu={z_parent} cm; N={n_out})",
+                title=f"PDGID distribution (parent z_mu={z_parent} cm; N={n_out}; r>={args.r_min} cm)",
                 topk=25,
                 logy=args.log
             )
 
             plot_r_vs_z(
-                r_vals=r, z_vals=zpos,
+                r_vals=rvals, z_vals=zpos,
                 outpath=Path(str(base) + "_r_vs_z.png"),
-                title=f"r vs z (parent z_mu={z_parent} cm; N={n_out})",
+                title=f"r vs z (parent z_mu={z_parent} cm; N={n_out}; r>={args.r_min} cm)",
                 logz=args.log
             )
 
