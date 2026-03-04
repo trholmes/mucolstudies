@@ -5,32 +5,29 @@ then print summary and make diagnostic plots per outlier parent.
 
 Parent definition: unique z_mu values *within each file* (i.e. (file, z_mu)).
 
-For each outlier parent (N(BIB) > threshold), print:
-  - file found in
-  - z of parent muon
-  - number of outgoing particles (after any cuts)
-  - sum of |p| over resulting BIB particles
+Cuts supported (applied consistently in both counting pass and plotting pass):
+  - radial cut: keep particles with r = sqrt(x^2+y^2) >= r-min
+  - momentum cut: keep particles with |p| in [p-min, p-max] (either can be omitted)
 
-Make plots (per outlier parent):
-  - distribution of momentum magnitude |p|
-  - distribution of PDGID (topK + Other)
-  - 2D histogram of r = sqrt(x^2+y^2) vs z
+Plots per outlier parent:
+  - |p| distribution (of selected particles)
+  - PDGID distribution (topK + Other) (of selected particles)
+  - 2D histogram of r vs z (of selected particles)
 
 Options:
   --log     : log-y for 1D plots and log color scale (log-z) for 2D plots
-  --r-min R : only count/plot particles with r >= R [cm] (same r as in r_vs_z plot)
-  --z-round : round z_mu to N decimals before grouping (helps if z_mu should be discrete)
+  --r-min R : only count/plot particles with r >= R [cm]
+  --p-min P : only count/plot particles with |p| >= P [GeV/c]
+  --p-max P : only count/plot particles with |p| <= P [GeV/c]
+  --z-round : round z_mu to N decimals before grouping
 
-Assumptions (matching the example fluka_remix style):
-  - Input binary record layout matches LINE_DT below
+Assumptions:
+  - Record layout matches LINE_DT
   - E is kinetic energy [GeV]
-  - Momentum magnitude computed from kinetic energy T and mass m:
-        p = sqrt(T^2 + 2 T m)   (c = 1 units)
-  - fid is a FLUKA particle id mapped to PDG via bib_pdgs.FLUKA_PIDS
-  - Mass is from bib_pdgs.PDG_PROPS[pdgid] = (charge, mass)
+  - |p| = sqrt(T^2 + 2 T m) with m from PDG_PROPS, c=1
 
 Usage:
-  python plotOutliers.py file1.bin [file2.bin ...] --threshold 20000 --outdir outliers --log --r-min 200
+  python plotOutliers.py *.bin --threshold 20000 --outdir out --log --r-min 200 --p-min 1.0
 """
 
 import argparse
@@ -127,7 +124,6 @@ def plot_r_vs_z(r_vals, z_vals, outpath: Path, title: str,
     fig, ax = plt.subplots(figsize=(8, 6))
 
     if logz:
-        # LogNorm with vmin=1 avoids log(0) problems from empty bins
         h = ax.hist2d(
             z_vals, r_vals,
             bins=[bins_z, bins_r],
@@ -162,8 +158,17 @@ def main():
                     help="Optional maximum number of records to read per file (debug)")
     ap.add_argument("--log", action="store_true",
                     help="Log-y for 1D plots and log color scale (log-z) for 2D plots")
+
+    # Geometry cut
     ap.add_argument("--r-min", type=float, default=0.0,
                     help="Only count/plot particles with r = sqrt(x^2+y^2) >= r-min [cm] (default: 0)")
+
+    # Momentum cuts (incoming BIB particle momentum magnitude)
+    ap.add_argument("--p-min", type=float, default=None,
+                    help="Only count/plot particles with |p| >= p-min [GeV/c]")
+    ap.add_argument("--p-max", type=float, default=None,
+                    help="Only count/plot particles with |p| <= p-max [GeV/c]")
+
     args = ap.parse_args()
 
     outdir = Path(args.outdir)
@@ -171,11 +176,68 @@ def main():
 
     any_outliers = False
 
+    # Helper to apply all cuts to a chunk, returning indices mask and computed |p|
+    def compute_masks_and_p(chunk, z_mu_arr):
+        # r cut
+        x = chunk["x"].astype(np.float64)
+        y = chunk["y"].astype(np.float64)
+        r = np.sqrt(x * x + y * y)
+        mask = (r >= args.r_min)
+
+        # Momentum: need PDG mass, so map fid -> pdg and get mass
+        fids = chunk["fid"].astype(np.int32)
+        pdg = np.zeros_like(fids, dtype=np.int32)
+        for i, fid in enumerate(fids):
+            pdg[i] = FLUKA_PIDS.get(int(fid), 0)
+
+        e_kin = chunk["E"].astype(np.float64)
+        masses = np.zeros_like(e_kin)
+        known = np.ones_like(e_kin, dtype=bool)
+        for i, pid in enumerate(pdg):
+            props = PDG_PROPS.get(int(pid))
+            if props is None:
+                known[i] = False
+            else:
+                masses[i] = float(props[1])
+
+        # require known mass if any momentum cuts are specified (or if we need p for plots)
+        # We always compute p for selected subsets anyway, so enforce known here.
+        mask &= known
+
+        if not np.any(mask):
+            return mask, None, None, None, None, None
+
+        # compute p only for masked entries
+        p_mag = np.zeros_like(e_kin)
+        idx = np.where(mask)[0]
+        p_mag[idx] = np.sqrt(e_kin[idx] * e_kin[idx] + 2.0 * e_kin[idx] * masses[idx])
+
+        # p cuts
+        if args.p_min is not None:
+            mask &= (p_mag >= args.p_min)
+        if args.p_max is not None:
+            mask &= (p_mag <= args.p_max)
+
+        if not np.any(mask):
+            return mask, None, None, None, None, None
+
+        # Recompute p_mag on final mask (keeps alignment and avoids stale values)
+        idx = np.where(mask)[0]
+        p_mag = np.sqrt(e_kin[idx] * e_kin[idx] + 2.0 * e_kin[idx] * masses[idx])
+
+        # return arrays aligned to final mask
+        pdg_sel = pdg[idx]
+        r_sel = r[idx]
+        zpos_sel = chunk["z"][idx].astype(np.float64)
+        zmu_sel = z_mu_arr[idx]
+
+        return mask, p_mag, pdg_sel, r_sel, zpos_sel, zmu_sel
+
     for fin in args.files_in:
         fin_path = Path(fin)
-        print(f"\n=== Scanning file: {fin_path} ===")
+        #print(f"\n=== Scanning file: {fin_path} ===")
 
-        # -------- Pass 1: count BIB per parent z_mu (THIS FILE), applying r-min cut ----------
+        # -------- Pass 1: count BIB per parent z_mu (THIS FILE), applying cuts ----------
         counts = {}
         n_read = 0
 
@@ -191,40 +253,39 @@ def main():
             if args.z_round is not None:
                 z_mu = np.round(z_mu, args.z_round)
 
-            # r-min cut uses same r as r_vs_z plot
-            x = chunk["x"].astype(np.float64)
-            y = chunk["y"].astype(np.float64)
-            r = np.sqrt(x * x + y * y)
-            mask_r = (r >= args.r_min)
-
-            z_mu_sel = z_mu[mask_r]
-            if z_mu_sel.size == 0:
+            # Apply r and p cuts
+            mask, p_mag, pdg_sel, r_sel, zpos_sel, zmu_sel = compute_masks_and_p(chunk, z_mu)
+            if zmu_sel is None or zmu_sel.size == 0:
                 n_read += chunk.size
                 continue
 
-            # accumulate counts per unique parent z_mu (within file)
-            uz, c = np.unique(z_mu_sel, return_counts=True)
+            uz, c = np.unique(zmu_sel, return_counts=True)
             for z, cc in zip(uz, c):
                 counts[z] = counts.get(z, 0) + int(cc)
 
             n_read += chunk.size
 
         if not counts:
-            print("No records found (or all records failed r-min cut).")
+            #print("No records found (or all records failed cuts).")
             continue
 
-        # Identify outliers (per-file)
         outliers = sorted([z for z, c in counts.items() if c > args.threshold])
         if not outliers:
-            print(f"No parents above threshold {args.threshold}. Max count was {max(counts.values())}.")
+            #print(f"No parents above threshold {args.threshold}. Max count was {max(counts.values())}.")
             continue
 
         any_outliers = True
-        print(f"Found {len(outliers)} outlier parent(s) with N(BIB) > {args.threshold} (after r-min={args.r_min} cm cut):")
+        cut_desc = f"r>={args.r_min} cm"
+        if args.p_min is not None:
+            cut_desc += f", |p|>={args.p_min} GeV/c"
+        if args.p_max is not None:
+            cut_desc += f", |p|<={args.p_max} GeV/c"
+
+        print(f"Found {len(outliers)} outlier parent(s) with N(BIB) > {args.threshold} (after cuts: {cut_desc}):")
         for z in outliers:
             print(f"  z_mu={z} : N={counts[z]}")
 
-        # -------- Pass 2: collect per-outlier particle data (apply same r-min cut) ----------
+        # -------- Pass 2: collect per-outlier particle data (apply same cuts) ----------
         data = {z: {"p": [], "pdg": [], "r": [], "z": []} for z in outliers}
         outlier_set = set(outliers)
 
@@ -241,7 +302,7 @@ def main():
             if args.z_round is not None:
                 z_mu = np.round(z_mu, args.z_round)
 
-            # quickly select any candidates by z_mu
+            # quick z_mu prefilter
             mask_any = np.isin(z_mu, outliers)
             if not np.any(mask_any):
                 n_read_2 += chunk.size
@@ -250,59 +311,21 @@ def main():
             sub = chunk[mask_any]
             sub_zmu = z_mu[mask_any]
 
-            # r-min cut on subset
-            x = sub["x"].astype(np.float64)
-            y = sub["y"].astype(np.float64)
-            r = np.sqrt(x * x + y * y)
-            mask_r = (r >= args.r_min)
-            if not np.any(mask_r):
+            # Apply r and p cuts on subset
+            mask, p_mag, pdg_sel, r_sel, zpos_sel, zmu_sel = compute_masks_and_p(sub, sub_zmu)
+            if zmu_sel is None or zmu_sel.size == 0:
                 n_read_2 += chunk.size
                 continue
 
-            sub = sub[mask_r]
-            sub_zmu = sub_zmu[mask_r]
-            r = r[mask_r]  # keep aligned
-
-            # FLUKA fid -> PDG
-            fids = sub["fid"].astype(np.int32)
-            pdg = np.zeros_like(fids, dtype=np.int32)
-            for i, fid in enumerate(fids):
-                pdg[i] = FLUKA_PIDS.get(int(fid), 0)
-
-            # momentum magnitude from Ekin and mass
-            e_kin = sub["E"].astype(np.float64)
-            masses = np.zeros_like(e_kin)
-            known = np.ones_like(e_kin, dtype=bool)
-            for i, pid in enumerate(pdg):
-                props = PDG_PROPS.get(int(pid))
-                if props is None:
-                    known[i] = False
-                else:
-                    masses[i] = float(props[1])
-
-            if not np.any(known):
-                n_read_2 += chunk.size
-                continue
-
-            sub = sub[known]
-            sub_zmu = sub_zmu[known]
-            pdg = pdg[known]
-            e_kin = e_kin[known]
-            masses = masses[known]
-            r = r[known]  # keep aligned after known-mass filter
-
-            p_mag = np.sqrt(e_kin * e_kin + 2.0 * e_kin * masses)
-
-            zpos = sub["z"].astype(np.float64)
-
-            for z_parent in np.unique(sub_zmu):
+            # Split by parent z_mu
+            for z_parent in np.unique(zmu_sel):
                 if z_parent not in outlier_set:
                     continue
-                m = (sub_zmu == z_parent)
+                m = (zmu_sel == z_parent)
                 data[z_parent]["p"].append(p_mag[m])
-                data[z_parent]["pdg"].append(pdg[m])
-                data[z_parent]["r"].append(r[m])
-                data[z_parent]["z"].append(zpos[m])
+                data[z_parent]["pdg"].append(pdg_sel[m])
+                data[z_parent]["r"].append(r_sel[m])
+                data[z_parent]["z"].append(zpos_sel[m])
 
             n_read_2 += chunk.size
 
@@ -319,21 +342,27 @@ def main():
             print("\n--- Outlier parent ---")
             print(f"File: {fin_path}")
             print(f"Parent z_mu (PosZmu): {z_parent}")
-            print(f"Number of outgoing BIB particles (after r-min={args.r_min} cm cut): {n_out}")
+            print(f"Number of outgoing BIB particles (after cuts): {n_out}")
             print(f"Sum of |p| over outgoing BIB particles: {sum_p:.6g} GeV/c")
 
             tag = safe_tag(float(z_parent))
-            base = outdir / f"{fin_path.stem}_zmu_{tag}_rmin_{args.r_min:g}"
+            cut_tag = f"rmin_{args.r_min:g}"
+            if args.p_min is not None:
+                cut_tag += f"_pmin_{args.p_min:g}"
+            if args.p_max is not None:
+                cut_tag += f"_pmax_{args.p_max:g}"
+
+            base = outdir / f"{fin_path.stem}_zmu_{tag}_{cut_tag}"
 
             plot_momentum(
                 p, Path(str(base) + "_p_mag.png"),
-                title=f"|p| distribution (parent z_mu={z_parent} cm; N={n_out}; r>={args.r_min} cm)",
+                title=f"|p| distribution (z_mu={z_parent} cm; N={n_out}; {cut_desc})",
                 logy=args.log
             )
 
             plot_pdg_bar(
                 pdg, Path(str(base) + "_pdg.png"),
-                title=f"PDGID distribution (parent z_mu={z_parent} cm; N={n_out}; r>={args.r_min} cm)",
+                title=f"PDGID distribution (z_mu={z_parent} cm; N={n_out}; {cut_desc})",
                 topk=25,
                 logy=args.log
             )
@@ -341,7 +370,7 @@ def main():
             plot_r_vs_z(
                 r_vals=rvals, z_vals=zpos,
                 outpath=Path(str(base) + "_r_vs_z.png"),
-                title=f"r vs z (parent z_mu={z_parent} cm; N={n_out}; r>={args.r_min} cm)",
+                title=f"r vs z (z_mu={z_parent} cm; N={n_out}; {cut_desc})",
                 logz=args.log
             )
 
