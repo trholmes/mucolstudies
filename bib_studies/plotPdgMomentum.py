@@ -2,15 +2,23 @@
 """
 Make momentum-distribution plots per PDGID for BIB particles from FLUKA binary input.
 
+Updates in this version:
+  - 1D plots are made PER |PDGID| and OVERLAY +PDG and -PDG contributions
+    (e.g. +13 vs -13 on the same |p| histogram).
+  - For neutrals (where + and - are the same, e.g. 22, 2112), you just get one curve.
+
 Outputs:
-  1) For each selected PDGID: 1D histogram of |p|
-  2) For each selected PDGID: 2D histogram of |p| vs parent muon z (z_mu)
+  1) For each selected |PDGID|: 1D overlay histogram of |p| for +pid and -pid
+  2) For each selected |PDGID|: 2D histogram of |p| vs parent muon z (z_mu)
+     (this 2D plot uses BOTH charges together)
 
 Selections:
   - radial cut: keep only particles with r = sqrt(x^2+y^2) >= --r-min
-  - PDG selection: either explicitly via --pdg-list, or automatically choose top-K by rate after cuts
+  - PDG selection:
+      * if --pdg-list given: interpreted as a list of PDGIDs; internally plots by |PDGID|
+      * else: auto-select top-K by COUNT after cuts, grouping by |PDGID|
 
-Assumptions (same as earlier scripts):
+Assumptions:
   - Record layout matches LINE_DT below
   - E is kinetic energy [GeV]
   - Momentum magnitude |p| computed from kinetic energy T and mass m:
@@ -19,9 +27,9 @@ Assumptions (same as earlier scripts):
   - mass is bib_pdgs.PDG_PROPS[pdgid] = (charge, mass)
 
 Examples:
-  python plotPdgMomentum.py /data/.../summary*.dat --outdir pdg_p --r-min 50
-  python plotPdgMomentum.py file.dat --pdg-list 11 -11 13 -13 22 2112 --r-min 50
-  python plotPdgMomentum.py file.dat --topk 15 --r-min 100 --z-round 3 --logz
+  python plotPdgMomentum_overlay.py /data/.../summary*.dat --outdir pdg_p --r-min 50
+  python plotPdgMomentum_overlay.py file.dat --pdg-list 11 -11 13 -13 22 2112 --r-min 50
+  python plotPdgMomentum_overlay.py file.dat --topk 15 --r-min 100 --z-round 3 --logz
 """
 
 import argparse
@@ -59,25 +67,36 @@ def iter_records(filename: str, chunk_records: int = 1_000_000):
             yield arr
 
 
-def safe_tag(x: float) -> str:
-    s = f"{x:.6f}".rstrip("0").rstrip(".")
-    s = s.replace("-", "m").replace(".", "p")
-    return s
+def pdg_abs_tag(pid_abs: int) -> str:
+    return f"pdgAbs_{pid_abs}"
 
 
-def pdg_tag(pid: int) -> str:
-    return f"pdg_{pid}"
-
-
-def plot_hist_p(p, outpath: Path, title: str, bins: int, logy: bool):
+def plot_hist_p_overlay(p_pos, p_neg, outpath: Path, title: str, bins: int, logy: bool,
+                        label_pos: str, label_neg: str):
+    """
+    Overlay +pid and -pid 1D |p| histograms. If one side is empty, it simply won't appear.
+    """
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.hist(p, bins=bins, histtype="step", linewidth=1.5)
+
+    plotted_any = False
+    if p_pos is not None and p_pos.size > 0:
+        ax.hist(p_pos, bins=bins, histtype="step", linewidth=1.5, label=label_pos)
+        plotted_any = True
+    if p_neg is not None and p_neg.size > 0:
+        ax.hist(p_neg, bins=bins, histtype="step", linewidth=1.5, label=label_neg)
+        plotted_any = True
+
+    if not plotted_any:
+        # Still write an empty figure with a message
+        ax.text(0.5, 0.5, "No entries after cuts", ha="center", va="center", transform=ax.transAxes)
+
     ax.set_xlabel("|p| [GeV/c]")
     ax.set_ylabel("BIB particles (count)")
     ax.set_title(title)
     if logy:
         ax.set_yscale("log")
     ax.grid(True, which="both", alpha=0.3)
+    ax.legend(loc="best", frameon=False)
     fig.tight_layout()
     fig.savefig(outpath, dpi=200)
     plt.close(fig)
@@ -114,11 +133,12 @@ def main():
 
     # PDG selection
     ap.add_argument("--pdg-list", type=int, nargs="+", default=None,
-                    help="Explicit list of PDGIDs to plot (e.g. --pdg-list 11 -11 13 -13 22)")
+                    help="Explicit list of PDGIDs to plot; internally grouped by |PDGID| "
+                         "(e.g. --pdg-list 13 or --pdg-list 13 -13 are equivalent)")
     ap.add_argument("--topk", type=int, default=20,
-                    help="If --pdg-list not provided, plot only top-K PDGIDs by count after cuts (default: 20)")
+                    help="If --pdg-list not provided, plot only top-K |PDGID| by count after cuts (default: 20)")
     ap.add_argument("--min-count", type=int, default=1,
-                    help="If auto-selecting PDGs, require at least this many entries (default: 1)")
+                    help="If auto-selecting, require at least this many entries (default: 1)")
 
     # Plot controls
     ap.add_argument("--bins-p", type=int, default=160, help="Bins for |p| in 1D plots")
@@ -132,12 +152,12 @@ def main():
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # First pass: determine which PDGs to plot (unless user supplies list)
-    pdg_counts = {}
+    # ---- Pass 1: count PDGs after cuts (grouping by abs(PDG)) unless user gave explicit list ----
+    counts_abs = {}  # abs(pdg) -> count after cuts
     n_read = 0
 
     def process_chunk_for_counts(chunk):
-        nonlocal pdg_counts
+        nonlocal counts_abs
 
         # r cut
         x = chunk["x"].astype(np.float64)
@@ -155,15 +175,17 @@ def main():
         for i, fid in enumerate(fids):
             pdg[i] = FLUKA_PIDS.get(int(fid), 0)
 
-        # keep only PDGs with known mass (so momentum is well-defined here)
+        # keep only PDGs with known mass (so momentum is well-defined)
         known = np.array([int(pid) in PDG_PROPS for pid in pdg], dtype=bool)
         if not np.any(known):
             return
         pdg = pdg[known]
 
-        uniq, cnt = np.unique(pdg, return_counts=True)
+        pdg_abs = np.abs(pdg)
+        uniq, cnt = np.unique(pdg_abs, return_counts=True)
         for u, c in zip(uniq, cnt):
-            pdg_counts[int(u)] = pdg_counts.get(int(u), 0) + int(c)
+            u = int(u)
+            counts_abs[u] = counts_abs.get(u, 0) + int(c)
 
     for fin in args.files_in:
         for chunk in iter_records(fin, chunk_records=args.chunk_records):
@@ -180,34 +202,36 @@ def main():
         if args.max_lines is not None and n_read >= args.max_lines:
             break
 
-    if not pdg_counts:
+    if not counts_abs:
         raise RuntimeError("No particles survived selection (or no known-mass PDGs).")
 
-    # Decide which PDGs to plot
+    # Decide which |PDG| to plot
     if args.pdg_list is not None:
-        pdgs_to_plot = [int(x) for x in args.pdg_list]
+        pdg_abs_to_plot = sorted(set(int(abs(x)) for x in args.pdg_list))
     else:
-        items = [(pid, c) for pid, c in pdg_counts.items() if c >= args.min_count]
+        items = [(pid_abs, c) for pid_abs, c in counts_abs.items() if c >= args.min_count]
         items.sort(key=lambda t: t[1], reverse=True)
-        pdgs_to_plot = [pid for pid, _ in items[:args.topk]]
+        pdg_abs_to_plot = [pid_abs for pid_abs, _ in items[:args.topk]]
 
-    # Write a CSV of PDG counts after cuts for transparency
-    csv_path = outdir / "pdg_counts_after_cuts.csv"
+    # Write a CSV of abs(PDG) counts after cuts
+    csv_path = outdir / "pdgAbs_counts_after_cuts.csv"
     with open(csv_path, "w") as f:
-        f.write("pdg_id,count_after_cuts\n")
-        for pid, c in sorted(pdg_counts.items(), key=lambda t: t[1], reverse=True):
-            f.write(f"{pid},{c}\n")
+        f.write("pdg_abs,count_after_cuts\n")
+        for pid_abs, c in sorted(counts_abs.items(), key=lambda t: t[1], reverse=True):
+            f.write(f"{pid_abs},{c}\n")
 
     print(f"Wrote: {csv_path}")
-    print(f"Selected {len(pdgs_to_plot)} PDGIDs to plot:", pdgs_to_plot)
+    print(f"Selected {len(pdg_abs_to_plot)} |PDGID| to plot:", pdg_abs_to_plot)
 
-    # Second pass: collect arrays per PDG for plotting
-    # Store as lists of arrays to avoid huge reallocs; concatenate at the end.
-    data_p = {pid: [] for pid in pdgs_to_plot}
-    data_zmu = {pid: [] for pid in pdgs_to_plot}
+    # ---- Pass 2: collect data per abs(PDG), separately for + and - charges (for 1D overlay) ----
+    # For 2D, we’ll combine both charges together in one plot per abs(PDG).
+    data_p_pos = {pid_abs: [] for pid_abs in pdg_abs_to_plot}
+    data_p_neg = {pid_abs: [] for pid_abs in pdg_abs_to_plot}
+    data_zmu_all = {pid_abs: [] for pid_abs in pdg_abs_to_plot}
+    data_p_all = {pid_abs: [] for pid_abs in pdg_abs_to_plot}
 
     n_read2 = 0
-    pdg_set = set(pdgs_to_plot)
+    abs_set = set(pdg_abs_to_plot)
 
     for fin in args.files_in:
         for chunk in iter_records(fin, chunk_records=args.chunk_records):
@@ -240,69 +264,97 @@ def main():
             for i, fid in enumerate(fids):
                 pdg[i] = FLUKA_PIDS.get(int(fid), 0)
 
-            # Keep only selected PDGs
-            sel = np.isin(pdg, pdgs_to_plot)
-            if not np.any(sel):
-                n_read2 += chunk.size
-                continue
-
-            sub = sub[sel]
-            zmu = zmu[sel]
-            pdg = pdg[sel]
-
-            # mass known filter (should always be true for PDGs we counted, but keep safe)
+            # keep only PDGs with known mass
             known = np.array([int(pid) in PDG_PROPS for pid in pdg], dtype=bool)
             if not np.any(known):
                 n_read2 += chunk.size
                 continue
+
             sub = sub[known]
             zmu = zmu[known]
             pdg = pdg[known]
 
+            pdg_abs = np.abs(pdg)
+            sel_abs = np.isin(pdg_abs, pdg_abs_to_plot)
+            if not np.any(sel_abs):
+                n_read2 += chunk.size
+                continue
+
+            sub = sub[sel_abs]
+            zmu = zmu[sel_abs]
+            pdg = pdg[sel_abs]
+            pdg_abs = pdg_abs[sel_abs]
+
             e_kin = sub["E"].astype(np.float64)
             masses = np.array([float(PDG_PROPS[int(pid)][1]) for pid in pdg], dtype=np.float64)
-
             p_mag = np.sqrt(e_kin * e_kin + 2.0 * e_kin * masses)
 
-            # Split into per-PDG buffers
-            for pid in np.unique(pdg):
-                pid = int(pid)
-                if pid not in pdg_set:
+            # Split per abs(PDG)
+            for pid_abs in np.unique(pdg_abs):
+                pid_abs = int(pid_abs)
+                if pid_abs not in abs_set:
                     continue
-                m = (pdg == pid)
-                data_p[pid].append(p_mag[m])
-                data_zmu[pid].append(zmu[m])
+                m_abs = (pdg_abs == pid_abs)
+                if not np.any(m_abs):
+                    continue
+
+                # For 2D combined:
+                data_p_all[pid_abs].append(p_mag[m_abs])
+                data_zmu_all[pid_abs].append(zmu[m_abs])
+
+                # For 1D overlay split by sign:
+                pdg_here = pdg[m_abs]
+                p_here = p_mag[m_abs]
+
+                m_pos = (pdg_here == pid_abs)      # +pid
+                m_neg = (pdg_here == -pid_abs)     # -pid
+
+                if np.any(m_pos):
+                    data_p_pos[pid_abs].append(p_here[m_pos])
+                if np.any(m_neg):
+                    data_p_neg[pid_abs].append(p_here[m_neg])
 
             n_read2 += chunk.size
 
         if args.max_lines is not None and n_read2 >= args.max_lines:
             break
 
-    # Plot per PDG
-    for pid in pdgs_to_plot:
-        if not data_p[pid]:
-            print(f"Skipping PDG {pid}: no entries after cuts.")
+    # ---- Plot per abs(PDG) ----
+    for pid_abs in pdg_abs_to_plot:
+        p_pos = np.concatenate(data_p_pos[pid_abs]) if data_p_pos[pid_abs] else np.array([], dtype=np.float64)
+        p_neg = np.concatenate(data_p_neg[pid_abs]) if data_p_neg[pid_abs] else np.array([], dtype=np.float64)
+
+        p_all = np.concatenate(data_p_all[pid_abs]) if data_p_all[pid_abs] else np.array([], dtype=np.float64)
+        zmu_all = np.concatenate(data_zmu_all[pid_abs]) if data_zmu_all[pid_abs] else np.array([], dtype=np.float64)
+
+        if p_all.size == 0:
+            print(f"Skipping |PDG|={pid_abs}: no entries after cuts.")
             continue
 
-        p = np.concatenate(data_p[pid])
-        zmu = np.concatenate(data_zmu[pid])
+        base = outdir / pdg_abs_tag(pid_abs)
 
-        # Output filenames
-        base = outdir / pdg_tag(pid)
-        title_1d = f"|p| distribution for PDGID {pid} (N={p.size}, r>={args.r_min} cm)"
-        title_2d = f"|p| vs parent z_mu for PDGID {pid} (N={p.size}, r>={args.r_min} cm)"
+        # 1D overlay (+pid_abs vs -pid_abs)
+        # For neutrals: pid_abs == -pid_abs is not a thing in PDG, but neutrals just populate one side typically.
+        title_1d = f"|p| for PDGID ±{pid_abs} (N={p_all.size}, r>={args.r_min} cm)"
+        label_pos = f"+{pid_abs} (N={p_pos.size})"
+        label_neg = f"-{pid_abs} (N={p_neg.size})"
 
-        plot_hist_p(
-            p,
-            outpath=Path(str(base) + "_p.png"),
+        plot_hist_p_overlay(
+            p_pos=p_pos,
+            p_neg=p_neg,
+            outpath=Path(str(base) + "_p_overlay.png"),
             title=title_1d,
             bins=args.bins_p,
             logy=args.logy,
+            label_pos=label_pos,
+            label_neg=label_neg,
         )
 
+        # 2D combined (both charges together)
+        title_2d = f"|p| vs parent z_mu for PDGID ±{pid_abs} (N={p_all.size}, r>={args.r_min} cm)"
         plot_hist2_p_vs_zmu(
-            zmu,
-            p,
+            zmu_all,
+            p_all,
             outpath=Path(str(base) + "_p_vs_zmu.png"),
             title=title_2d,
             bins_z=args.bins_z,
@@ -310,20 +362,22 @@ def main():
             logz=args.logz,
         )
 
-        print(f"Wrote: {base}_p.png")
+        print(f"Wrote: {base}_p_overlay.png")
         print(f"Wrote: {base}_p_vs_zmu.png")
 
-    # Summary text file (handy for quick scanning)
+    # Summary text file
     summary = outdir / "summary.txt"
     with open(summary, "w") as f:
         f.write(f"r_min_cm={args.r_min}\n")
         if args.z_round is not None:
             f.write(f"z_round={args.z_round}\n")
-        f.write(f"pdgs_plotted={pdgs_to_plot}\n")
-        f.write("pdg_id,N\n")
-        for pid in pdgs_to_plot:
-            n = sum(arr.size for arr in data_p[pid]) if data_p[pid] else 0
-            f.write(f"{pid},{n}\n")
+        f.write(f"pdg_abs_plotted={pdg_abs_to_plot}\n")
+        f.write("pdg_abs,N_total,N_pos,N_neg\n")
+        for pid_abs in pdg_abs_to_plot:
+            n_tot = sum(arr.size for arr in data_p_all[pid_abs]) if data_p_all[pid_abs] else 0
+            n_pos = sum(arr.size for arr in data_p_pos[pid_abs]) if data_p_pos[pid_abs] else 0
+            n_neg = sum(arr.size for arr in data_p_neg[pid_abs]) if data_p_neg[pid_abs] else 0
+            f.write(f"{pid_abs},{n_tot},{n_pos},{n_neg}\n")
     print(f"Wrote: {summary}")
 
 
