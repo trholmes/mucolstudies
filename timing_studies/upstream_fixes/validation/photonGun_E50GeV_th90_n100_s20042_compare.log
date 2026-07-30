@@ -1,0 +1,14 @@
+comparing 100 events: data/reco/photonGun_E50GeV_th90_n100_s20042_reco_default.edm4hep.root vs data/patched/photonGun_E50GeV_th90_n100_s20042_reco.edm4hep.root
+[EcalBarrel/Digi] n=105277: cellIDs identical=True, max|dE|=0, max|dt|=0 ns
+[EcalBarrel/Rec] n=105277: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 4610/105277
+[EcalBarrel/Coned] n=105276: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 4609/105276
+[EcalBarrel/Sel] n=87746: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 3589/87746
+[EcalEndcap/Digi] n=3: cellIDs identical=True, max|dE|=0, max|dt|=0 ns
+[EcalEndcap/Rec] n=3: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 3/3
+[HcalBarrel/Digi] n=51: cellIDs identical=True, max|dE|=0, max|dt|=0 ns
+[HcalBarrel/Rec] n=51: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 45/51
+[HcalBarrel/Coned] n=51: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 45/51
+[HcalBarrel/Sel] n=35: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 32/35
+[PandoraClusters] n=118: max|dE|=0 GeV
+[PandoraPFOs] n=118: max|dE|=0 GeV
+COMPARISON PASS (0 differences beyond the intended cellID repair)

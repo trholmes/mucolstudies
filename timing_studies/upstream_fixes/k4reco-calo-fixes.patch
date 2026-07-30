@@ -1,0 +1,54 @@
+diff --git a/k4Reco/BIBUtils/src/CaloHitSelector.cpp b/k4Reco/BIBUtils/src/CaloHitSelector.cpp
+index 6f93344..5de62fc 100644
+--- a/k4Reco/BIBUtils/src/CaloHitSelector.cpp
++++ b/k4Reco/BIBUtils/src/CaloHitSelector.cpp
+@@ -96,7 +96,6 @@ CaloHitSelector::operator()(const edm4hep::CalorimeterHitCollection& caloHits,
+     const unsigned int layer = bitFieldCoder.get(hit.getCellID(), "layer");
+ 
+     const auto& pos = hit.getPosition();
+-    const double r = std::sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
+ 
+     // Polar angle, symmetrized around pi/2 to match the threshold maps.
+     double hitTheta = std::atan2(std::sqrt(pos.x * pos.x + pos.y * pos.y), static_cast<double>(pos.z));
+@@ -127,10 +126,14 @@ CaloHitSelector::operator()(const edm4hep::CalorimeterHitCollection& caloHits,
+       continue;
+     }
+ 
+-    // Correct the hit time for the time of flight from the origin. This mirrors
+-    // the original Marlin processor, which divides the distance by TMath::C().
+-    const double timeCorrection = r / TMath::C();
+-    const double relativeTime = hit.getTime() - timeCorrection;
++    // The stored hit time is already corrected for the time of flight from
++    // the IP by the digitizer (RealisticCaloDigi with
++    // timingCorrectForPropagation, which keeps the earliest accepted
++    // contribution's corrected time), so it is used directly here.
++    // NB: earlier versions subtracted r/TMath::C() again; with r in mm and
++    // TMath::C() in m/s that term was ~1e-6 ns, i.e. numerically a no-op.
++    // Subtracting a correctly-computed TOF here would double-count it.
++    const double relativeTime = hit.getTime();
+     if (relativeTime <= m_timeWindowMin || relativeTime >= m_timeWindowMax) {
+       continue;
+     }
+diff --git a/k4Reco/CaloDigi/src/RealisticCaloReco.cc b/k4Reco/CaloDigi/src/RealisticCaloReco.cc
+index c4f25f4..5a7845c 100644
+--- a/k4Reco/CaloDigi/src/RealisticCaloReco.cc
++++ b/k4Reco/CaloDigi/src/RealisticCaloReco.cc
+@@ -27,6 +27,7 @@
+ #include <algorithm>
+ #include <assert.h>
+ #include <cmath>
++#include <cstdint>
+ #include <iostream>
+ #include <string>
+ 
+@@ -69,7 +70,9 @@ RealisticCaloReco::operator()(const edm4hep::CaloHitSimCaloHitLinkCollection& in
+     edm4hep::CalorimeterHit* hit = &hit0;
+     edm4hep::MutableCalorimeterHit calhit = newcol.create(); // make new hit
+ 
+-    int cellid = hit->getCellID();
++    // NB: must stay 64-bit - truncating to int drops the cellID fields above
++    // bit 31 (e.g. the x/y cell indices of the MAIA calorimeter encoding)
++    const std::uint64_t cellid = hit->getCellID();
+     float energy =
+         reconstructEnergy(hit, bitFieldCoder.get(cellid, "layer")); // overloaded method, technology dependent
+ 

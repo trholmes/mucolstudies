@@ -190,6 +190,10 @@ back into this file.
 - [x] Phase 1: photon samples (E = 10/50/200 GeV, 100 evts, theta = 90); ECAL results.
 - [x] Phase 2: pion samples (same grid); ECAL+HCAL combined results.
 - [x] Suggested timing cuts written here (ECAL: section 5.3; combined: section 5.5).
+- [x] Upstream fixes (section 1 notes 2/6) implemented, built in the v3.0 container
+  and validated output-identical (photon sample bit-identical; pion sample: two
+  hits within 7e-6 ns of the +0.3 ns edge now correctly rejected). PR-ready pack
+  in `upstream_fixes/` (patch, PR body, validation logs, instructions).
 
 ## 5. Results
 
