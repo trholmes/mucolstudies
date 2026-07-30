@@ -188,8 +188,8 @@ back into this file.
 - [x] Cut inventory verified against k4Reco/MAIAConfig source (this file, section 1).
 - [x] Phase 0: scaffolding, container smoke test, threshold-map extraction.
 - [x] Phase 1: photon samples (E = 10/50/200 GeV, 100 evts, theta = 90); ECAL results.
-- [ ] Phase 2: pion samples (same grid); ECAL+HCAL combined results.
-- [ ] Suggested timing cuts written here (ECAL part done, section 5.3).
+- [x] Phase 2: pion samples (same grid); ECAL+HCAL combined results.
+- [x] Suggested timing cuts written here (ECAL: section 5.3; combined: section 5.5).
 
 ## 5. Results
 
@@ -264,3 +264,70 @@ Key observations:
 
 (How much BIB the looser selector edge re-admits is outside this no-BIB study and
 must be checked against the BIB occupancy before adopting +0.5/+1.0 ns.)
+
+### 5.4 Phase 2 results (pi-, theta = 90, no BIB; plots in `plots/hcal_pions/`)
+
+Closure at hadronic occupancy: all gates pass. ECAL as in phase 1 (<0.1%); HCAL
+event Sel sums close to 1.5% / 1.0% / 0.3% (10/50/200 GeV) - the residual is
+entirely the un-emulated binomial SiPM smear, and the real-chain variant runs
+agree with the emulation to 0.1-0.8% median (68% width 0.5-4%).
+
+The delta_t spectra show why hadrons are different: only ~59% (HCAL) and ~78%
+(ECAL) of the pion sim energy arrives within +/-0.5 ns; the neutron-dominated
+tail extends over tens (HCAL: hundreds) of ns.
+
+Median retained energy fraction, **ECAL+HCAL barrel summed** (68% event-to-event
+spread in parentheses; denominator: same thresholds, no timing cuts):
+
+| cut | 10 GeV | 50 GeV | 200 GeV |
+|---|---|---|---|
+| **current (digi 10 ns, sel +/-0.3 ns)** | **0.709 (0.129)** | **0.789 (0.066)** | **0.845 (0.046)** |
+| sel +/-0.5 ns | 0.799 (0.116) | 0.852 (0.048) | 0.889 (0.036) |
+| sel +/-1.0 ns | 0.883 (0.071) | 0.908 (0.034) | 0.929 (0.022) |
+| sel +/-2.0 ns | 0.923 (0.051) | 0.938 (0.024) | 0.952 (0.017) |
+| sel +/-5.0 ns | 0.965 (0.025) | 0.969 (0.013) | 0.975 (0.009) |
+| no selector (digi 10 ns alone) | 0.983 (0.013) | 0.987 (0.007) | 0.987 (0.005) |
+| digi 25 ns, no selector | 0.994 (0.007) | 0.996 (0.003) | 0.996 (0.002) |
+
+HCAL-only at the current cut retains just 0.52 / 0.61 / 0.76 with 37% / 16% / 10%
+event-to-event spread; ECAL-only for pions retains 0.79 / 0.87 / 0.92 (hadronic
+interactions in the ECAL also produce late energy). Asymmetric windows again equal
+symmetric ones: all loss is on the late side.
+
+Key observations:
+
+1. **The +/-0.3 ns selector cut strongly shapes hadronic cluster energy**: it
+   removes 15-29% of the calorimeter energy with an ~14% response non-linearity
+   between 10 and 200 GeV, and adds a 5-13% event-to-event spread - a major
+   resolution term. Cross-checked in the real chain: the median 10 GeV pion
+   leading-cluster energy moves from 5.35 GeV (selector +/-0.15 ns) to 8.90 GeV
+   (+/-1.0 ns).
+2. **No reasonable window recovers everything**: the late tail is intrinsic to
+   hadronic showers, so the window choice is a genuine trade-off against BIB.
+   Doubling the late edge roughly halves both the energy loss and the added spread
+   (+1 ns -> ~90% retained; +2 ns -> ~94%; +5 ns -> ~97%).
+3. **The digi window matters for hadrons too, but mildly**: 10 ns costs 1.3-1.7%
+   (energy-independent); 25 ns recovers to <0.6%.
+4. The interplay documented in section 1 is visible: with the selector open, energy
+   integrated out to 10 ns survives via prompt-earliest cells; the selector then
+   discards whole late-first cells, which dominate the hadronic loss.
+
+### 5.5 Suggested timing cuts (combined, no BIB - BIB re-check required)
+
+- **ECAL selector**: (-0.3, +0.5) ns keeps photon clusters lossless to <0.25%;
+  even the current +/-0.3 ns is acceptable (flat 0.6%).
+- **HCAL selector**: this is the sensitive knob. The physics-driven choice is the
+  loosest late edge the BIB level permits, set *independently* of the ECAL:
+  (-0.3, +1.0) ns as a floor (~12-21% hadronic loss -> ~90% retained), (-0.3, +2.0) ns
+  where BIB allows (~94% retained). Below +0.5 ns the hadronic response develops
+  strong non-linearity and resolution degradation.
+- **Early edges**: keep at -0.3 ns everywhere; they remove nothing from signal.
+- **Digi windows**: decouple from the selector. ECAL can be tightened to 2-3 ns for
+  free (BIB suppression in the integration tail); HCAL benefits from *loosening* to
+  ~25 ns (recovers 1-2% of hadronic energy) if BIB integration allows.
+- Any retuning of the selector windows shifts the hadronic energy scale by 10-25%,
+  so Pandora's hadronic calibration (`HCalToHadGeVCalibration`, software
+  compensation weights) must be re-derived alongside.
+
+The natural follow-up is repeating phase 2 with BIB overlay to place the other side
+of the trade-off on the same axes (signal retained vs BIB admitted per window).
