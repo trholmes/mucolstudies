@@ -1,0 +1,4 @@
+data/
+*.edm4hep.root
+*.slcio
+__pycache__/
