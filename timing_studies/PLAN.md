@@ -312,22 +312,57 @@ Key observations:
    integrated out to 10 ns survives via prompt-earliest cells; the selector then
    discards whole late-first cells, which dominate the hadronic loss.
 
-### 5.5 Suggested timing cuts (combined, no BIB - BIB re-check required)
+### 5.5 Per-subdetector selector-window tuning and suggested cuts (no BIB)
 
-- **ECAL selector**: (-0.3, +0.5) ns keeps photon clusters lossless to <0.25%;
-  even the current +/-0.3 ns is acceptable (flat 0.6%).
-- **HCAL selector**: this is the sensitive knob. The physics-driven choice is the
-  loosest late edge the BIB level permits, set *independently* of the ECAL:
-  (-0.3, +1.0) ns as a floor (~12-21% hadronic loss -> ~90% retained), (-0.3, +2.0) ns
-  where BIB allows (~94% retained). Below +0.5 ns the hadronic response develops
-  strong non-linearity and resolution degradation.
-- **Early edges**: keep at -0.3 ns everywhere; they remove nothing from signal.
-- **Digi windows**: decouple from the selector. ECAL can be tightened to 2-3 ns for
-  free (BIB suppression in the integration tail); HCAL benefits from *loosening* to
-  ~25 ns (recovers 1-2% of hadronic energy) if BIB integration allows.
-- Any retuning of the selector windows shifts the hadronic energy scale by 10-25%,
-  so Pandora's hadronic calibration (`HCalToHadGeVCalibration`, software
-  compensation weights) must be re-derived alongside.
+The selector acts per cell, so the ECAL and HCAL windows factorize exactly and can
+be tuned independently. Median retained fraction per subdetector (68% spread), with
+the pion response linearity ratio retained(200 GeV)/retained(10 GeV) as the shaping
+metric:
 
-The natural follow-up is repeating phase 2 with BIB overlay to place the other side
-of the trade-off on the same axes (signal retained vs BIB admitted per window).
+**ECAL barrel window** (must serve photons AND the ECAL half of hadronic showers):
+
+| window [ns] | gamma 10 | gamma 200 | pi 10 | pi 50 | pi 200 | pi 200/10 |
+|---|---|---|---|---|---|---|
+| +/-0.3 (current) | 0.994 | 0.994 | 0.794 (0.18) | 0.865 (0.08) | 0.916 (0.05) | 1.153 |
+| +/-0.5 | 0.998 | 0.998 | 0.870 (0.13) | 0.911 (0.06) | 0.944 (0.04) | 1.084 |
+| +/-1.0 | 1.000 | 0.999 | 0.919 (0.07) | 0.944 (0.04) | 0.964 (0.03) | 1.049 |
+| +/-2.0 | 1.000 | 1.000 | 0.959 (0.04) | 0.965 (0.03) | 0.973 (0.02) | 1.016 |
+| +/-5.0 | 1.000 | 1.000 | 0.979 (0.02) | 0.984 (0.01) | 0.987 (0.01) | 1.008 |
+| open | 1.000 | 1.000 | 0.990 (0.01) | 0.991 (0.01) | 0.992 (0.01) | 1.002 |
+
+**HCAL barrel window** (pions; photons contribute only ~0.05% leakage):
+
+| window [ns] | pi 10 | pi 50 | pi 200 | pi 200/10 |
+|---|---|---|---|---|
+| +/-0.3 (current) | 0.515 (0.37) | 0.613 (0.16) | 0.762 (0.10) | 1.479 |
+| +/-0.5 | 0.651 (0.38) | 0.730 (0.15) | 0.827 (0.08) | 1.270 |
+| +/-1.0 | 0.785 (0.31) | 0.839 (0.11) | 0.886 (0.05) | 1.129 |
+| +/-2.0 | 0.846 (0.19) | 0.886 (0.07) | 0.919 (0.04) | 1.087 |
+| +/-5.0 | 0.934 (0.10) | 0.947 (0.03) | 0.960 (0.02) | 1.028 |
+| open | 0.983 (0.04) | 0.978 (0.02) | 0.982 (0.01) | 1.000 |
+
+Suggested cuts (tightest windows whose shaping is small; every value to be
+re-weighed against BIB admission):
+
+- **ECAL selector: (-0.3, +2.0) ns.** Photons stay exactly lossless (they already
+  are from +0.5 ns); the ECAL part of hadronic showers recovers to 96-97% retained
+  with response non-linearity down from 15% to 1.6% and spread <= 4%. If BIB forces
+  a tighter edge, +1.0 ns is the compromise (5% non-linearity); for an
+  *EM-only* trigger-style selection +0.5 ns suffices.
+- **HCAL selector: (-0.3, +5.0) ns**, floor (-0.3, +2.0) ns. At +5 ns the hadronic
+  response flattens (non-linearity 2.8%, retained 93-96%, spread <= 10%); at the
+  +2 ns floor the non-linearity is 8.7%. The current +/-0.3 ns (48% non-linearity,
+  37% spread at 10 GeV) should not be used for hadronic calorimetry without BIB
+  pressure that demands it.
+- **Early edges: -0.3 ns everywhere** - they remove nothing from signal at any
+  energy, for either particle type.
+- **Digi windows** (secondary): ECAL can be tightened 10 -> 2-3 ns for free; HCAL
+  loosened 10 -> 25 ns recovers 1-2% of hadronic energy (relevant mainly if the
+  selector is opened to +5 ns, where the digi edge becomes the limit).
+- Any selector retune shifts the hadronic energy scale by 10-25%, so Pandora's
+  hadronic calibration (`HCalToHadGeVCalibration`, software compensation weights)
+  must be re-derived alongside.
+
+The natural follow-up is repeating this with BIB overlay to place the other side of
+the trade-off on the same axes (signal retained vs BIB admitted per window), and a
+theta scan to extend the barrel-only tuning to the endcaps.
