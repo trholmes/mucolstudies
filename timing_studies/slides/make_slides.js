@@ -399,7 +399,22 @@ function row(cells, highlight) {
   footer(s, 14);
 }
 
-// ------------------------------------------------------- 15 · conclusions
+// --------------------------------- 15 · why the 10 GeV spread is non-monotonic
+{
+  const s = pres.addSlide();
+  titleBar(s, "The 10 GeV HCAL spread bump, explained",
+    "The 68% band on the previous slide is a percentile of a distribution that is far from Gaussian at low energy — here are the distributions themselves");
+  configChip(s, "HCAL barrel, π⁻; digi window FIXED at default (−0.5, +10) ns; selector windows in the legends. f = per-event E(window) / E(no timing cuts) — the same quantity whose median and 68% band appear on the previous slide.", 1.35);
+  s.addImage({ path: `${PLOTS}/hcal_pions/fraction_dist_HcalBarrel.png`, x: M + 0.35, y: 2.08, w: 11.45, h: 3.44 });
+  bullets(s, [
+    { text: "10 GeV: a distinct population retains f = 0 exactly — 17 events at the current ±0.3 ns, still 9 at ±2 ns: no HCAL cell has an early-enough FIRST deposit (the HCAL piece is small — median ~2 GeV, ~15 cells — late and neutron-dominated). The 16th percentile sits at 0 up to w = 0.3 ns.", options: { bold: true } },
+    "Opening the window pulls prompt-rich events to f ≈ 1 while late-dominated events stay near 0: the distribution stretches across [0, 1], so the 68% spread PEAKS (~0.40 at w ≈ 0.4–0.75 ns) where the median crosses mid-range — a p(1−p)-type maximum — then collapses as everything converges to f ≈ 1. The rise-then-fall of the blue curve is expected, not a glitch.",
+    "50 / 200 GeV: showers average over many more cells and sub-showers — a single peak that narrows and moves right, no f = 0 spike, monotonic spread. At 10 GeV and ±0.3 ns the HCAL flips between seeing the shower and seeing nothing, event by event — not a smeared measurement.",
+  ], { x: M, y: 5.62, w: W - 2 * M, h: 1.6, fontSize: 10.5 });
+  footer(s, 15);
+}
+
+// ------------------------------------------------------- 16 · conclusions
 {
   const s = pres.addSlide();
   s.background = { color: NAVY };

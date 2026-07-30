@@ -311,6 +311,17 @@ Key observations:
 4. The interplay documented in section 1 is visible: with the selector open, energy
    integrated out to 10 ns survives via prompt-earliest cells; the selector then
    discards whole late-first cells, which dominate the hadronic loss.
+5. The 10 GeV HCAL 68%-spread curve is non-monotonic (peaks ~0.40 at w ~ 0.4-0.75 ns)
+   because the per-event retained-fraction distribution is bimodal: a population of
+   events retains exactly f = 0 (17/96 at the current +/-0.3 ns, still 9 at +/-2 ns -
+   no cell with an early-enough first deposit) while prompt-rich events sit near
+   f = 1. The spread peaks where the median crosses mid-range (p(1-p)-type maximum)
+   and collapses once everything converges to f ~ 1; at 50/200 GeV showers average
+   over enough cells that the distribution is single-peaked and the spread monotonic.
+   See `analysis/plot_fraction_dists.py` ->
+   `plots/hcal_pions/fraction_dist_HcalBarrel.png`. Consequence: at 10 GeV and
+   +/-0.3 ns the HCAL flips between seeing the shower and seeing nothing event by
+   event - the "spread" there is population splitting, not a Gaussian resolution.
 
 ### 5.5 Per-subdetector selector-window tuning and suggested cuts (no BIB)
 
