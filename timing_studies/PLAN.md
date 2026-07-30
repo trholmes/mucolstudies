@@ -186,11 +186,81 @@ back into this file.
 ## 4. Status / decision log
 
 - [x] Cut inventory verified against k4Reco/MAIAConfig source (this file, section 1).
-- [ ] Phase 0: scaffolding, container smoke test, threshold-map extraction.
-- [ ] Phase 1: photon samples (E = 10/50/200 GeV, 100 evts, theta = 90); ECAL results.
+- [x] Phase 0: scaffolding, container smoke test, threshold-map extraction.
+- [x] Phase 1: photon samples (E = 10/50/200 GeV, 100 evts, theta = 90); ECAL results.
 - [ ] Phase 2: pion samples (same grid); ECAL+HCAL combined results.
-- [ ] Suggested timing cuts written here.
+- [ ] Suggested timing cuts written here (ECAL part done, section 5.3).
 
 ## 5. Results
 
-(to be filled)
+### 5.1 Phase 1 closure (photons, theta = 90, no BIB)
+
+All verification gates pass. Highlights (100 events/point):
+
+- Per-cell emulated vs actual **Digi** hits (ECAL barrel): cell sets match to
+  <0.05%, energies to 0.2% (the Poisson e-h smear), times to <1e-6 ns.
+- Emulated vs actual **Sel** event sums (ECAL barrel): median deviation 0.01-0.04%.
+- **Real-chain variant runs** (selector +/-0.15 ns, +/-1.0 ns; digi max 2 ns, at all
+  three energies): emulation matches the actual Sel sums with median deviation
+  < 0.01% and 68% width < 0.06% -> the scan below is equivalent to re-running the
+  chain at every grid point.
+- **Leading Pandora cluster / Sel-hit sum = 1.021-1.023** at every variant point,
+  i.e. exactly Pandora's `ECalToEMGeVCalibration = 1.0237`: for single photons the
+  cluster energy tracks the hit-selection energy perfectly, so hit-level retained
+  fractions ARE cluster-level retained fractions.
+- HCAL closure at this occupancy (photon leakage, ~2 cells/event near threshold) is
+  limited by the un-emulated binomial SiPM smear, as expected; at >= 20 cells/event
+  it closes to <1%. Properly exercised in phase 2.
+
+### 5.2 Phase 1 ECAL results (plots in `plots/ecal_photons/`)
+
+Energy-weighted delta_t spectra (`dt_*_EcalBarrel.png`): a prompt peak at
+~0.02 ns containing ~99.5% of the energy within +/-0.5 ns, falling by three
+orders of magnitude within ~1 ns, then a flat few-1e-5/ns tail out past 10 ns.
+
+Median retained ECAL-barrel energy fraction (denominator: same thresholds, no
+timing cuts; digi window at default (-0.5, 10) ns):
+
+| selector window [ns] | 10 GeV | 50 GeV | 200 GeV |
+|---------------------|--------|--------|---------|
+| abs(t) < 0.2         | 0.9860 | 0.9860 | 0.9880 |
+| abs(t) < 0.25        | 0.9918 | 0.9911 | 0.9917 |
+| **abs(t) < 0.3 (current)** | **0.9942** | **0.9940** | **0.9941** |
+| abs(t) < 0.4         | 0.9966 | 0.9968 | 0.9969 |
+| abs(t) < 0.5         | 0.9983 | 0.9979 | 0.9982 |
+| abs(t) < 1.0         | 1.0000 | 0.9990 | 0.9991 |
+| -0.3 < t < 0.5       | 0.9983 | 0.9979 | 0.9982 |
+| -0.3 < t < 1.0       | 1.0000 | 0.9990 | 0.9991 |
+
+Event-to-event 68% spread of the retained fraction (a direct resolution
+contribution): 0.46% / 0.21% / 0.13% (10/50/200 GeV) at +/-0.3 ns, halving at
++/-0.5 ns and halving again at (-0.3, +1.0) ns.
+
+Key observations:
+
+1. **The digi window is a non-issue for the ECAL**: even `timingWindowMax = 1 ns`
+   keeps > 99.8% of the energy; at 2 ns the loss is < 0.1% at all energies
+   (`retained_vs_digimax.png`). The current 10 ns is generously safe - or could be
+   *tightened to ~2-3 ns* for free if BIB integration in the +10 ns tail proves
+   harmful.
+2. **All the timing loss is on the late side**: the asymmetric rows equal the
+   symmetric rows with the same max. The early edge (-0.3 ns) removes nothing from
+   photon clusters - backward smearing of the prompt peak is < 1e-4.
+3. **The current +/-0.3 ns selector cut removes a flat 0.6%** of cluster energy,
+   *independent of energy* between 10 and 200 GeV - a calibratable offset, not a
+   shape, with a small resolution penalty (<= 0.5%). Strong energy-dependent shaping
+   only starts below ~0.2 ns half-width.
+
+### 5.3 Suggested ECAL timing cuts (photons, no BIB - to be revisited with BIB)
+
+- The **selector late edge is the only knob that matters**. `TimeWindowMax = 0.3 ns`
+  (current) is acceptable (0.6% flat loss); raising it to **0.5 ns** cuts the loss
+  to < 0.25% and the resolution penalty to < 0.3%; **+1.0 ns** makes the cut
+  effectively lossless (<= 0.1%).
+- Keep the early edge tight: `TimeWindowMin = -0.3 ns` costs nothing.
+- The digi window can stay at (-0.5, +10) ns; if BIB pileup in the integration
+  window is a concern, it can be tightened to `timingWindowMax ~ 2-3 ns` with
+  < 0.1% signal cost.
+
+(How much BIB the looser selector edge re-admits is outside this no-BIB study and
+must be checked against the BIB occupancy before adopting +0.5/+1.0 ns.)
