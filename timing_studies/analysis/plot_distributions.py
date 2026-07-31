@@ -42,8 +42,25 @@ def main():
     stems = sorted({k.split("__")[0] for k in d if "__dthist_" in k},
                    key=lambda s: (len(s), s))
 
-    for level, title in (("contrib", "per contribution"),
-                         ("cellearliest", "per cell (earliest accepted time)")):
+    LEVELS = (("contrib", "per contribution (no cuts)"),
+              ("cellearliest_nodigi", "per cell, earliest contribution (no digi cut)"),
+              ("cellearliest", "per cell (earliest accepted time, digi window (-0.5,+10) ns)"))
+
+    # identical y scale across all levels of a region -> directly comparable
+    ylims = {}
+    for region in cm.REGIONS:
+        lo, hi = np.inf, 0.0
+        for level, _ in LEVELS:
+            for stem in stems:
+                key = f"{stem}__dthist_{level}_{region}"
+                if key in d and d[key].sum() > 0:
+                    h = d[key] / d[key].sum() / widths
+                    pos = h[h > 0]
+                    lo, hi = min(lo, pos.min()), max(hi, pos.max())
+        if hi > 0:
+            ylims[region] = (lo * 0.5, hi * 3)
+
+    for level, title in LEVELS:
         for region in cm.REGIONS:
             fig, ax = plt.subplots(figsize=(7, 5))
             found = False
@@ -64,9 +81,11 @@ def main():
             ax.set_yscale("log")
             ax.set_xlabel(r"$\Delta t = t - r/c$ [ns]")
             ax.set_ylabel("energy-weighted density [1/ns]")
-            ax.set_title(f"{region}, {title}")
+            ax.set_title(f"{region}, {title}", fontsize=11)
             ax.legend(fontsize=8)
             ax.set_xlim(bins[0], 25)
+            if region in ylims:
+                ax.set_ylim(*ylims[region])
             fig.tight_layout()
             out = os.path.join(args.outdir, f"dt_{level}_{region}.png")
             fig.savefig(out, dpi=150)

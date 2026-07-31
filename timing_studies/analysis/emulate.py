@@ -127,6 +127,13 @@ def run_scan(flat, ecal_map, digi_min_scan, digi_max_scan):
             hw2, _ = np.histogram(t_cell[has], bins=DT_BINS,
                                   weights=e_win[has])
             res[f"dthist_cellearliest_{region}"] = hw2
+            # same cell-earliest construction but with NO digi window at all:
+            # cell time = earliest contribution, energy = full cell energy -
+            # directly comparable to the contribution-level spectrum
+            e_all, t_first, has_all = windowed_vectorized(rd, -np.inf, np.inf)
+            hw3, _ = np.histogram(t_first[has_all], bins=DT_BINS,
+                                  weights=e_all[has_all])
+            res[f"dthist_cellearliest_nodigi_{region}"] = hw3
 
     return res, grids
 
