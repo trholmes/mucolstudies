@@ -91,6 +91,31 @@ Code references (k4Reco @ main, MAIAConfig @ main):
    degenerate IDs. Together with the units accident in note 2, both are worth an
    upstream report.
 
+### The ~1 ns line in the photon ECAL delta_t spectrum (simulation feature)
+
+The photon ECAL contribution spectrum shows a narrow spike turning on at exactly
+delta_t = 1.000 ns (x18 density jump within ~2 ps, decaying tail to ~1.3 ns,
+present in 91/100 events, ~0.2% of the shower energy). Diagnosis:
+
+- The deposits are nuclear de-excitation debris - soft electrons, protons and
+  nuclear recoils (27Al, 28Si, 29Si step PDGs) from photonuclear/neutron
+  reactions - localized in the cells the shower already traversed (on-axis,
+  all layers).
+- The timing aligns in ABSOLUTE delta_t (t - r/c) across layers and even in
+  cells whose first deposit was late -> a fixed +1.000 ns delay relative to the
+  shower front, not geometry.
+- The constant is Geant4's de-excitation time limit:
+  `G4DeexPrecoParameters::fMaxLifeTime = 1*CLHEP::nanosecond` (verified in the
+  Geant4 11.4.0 source used by the container; used as the prompt/long-lived
+  boundary in `G4PhotonEvaporation`).
+
+So the "bump" is a simulation-parameter artifact, not detector physics. It is
+invisible in pion spectra only because real hadronic late energy dwarfs it
+(pion ECAL: x1.8 step on a large continuum; HCAL: fully buried). Impact on this
+study: negligible (0.1-0.2% of photon energy, and it sits above the +0.3/+0.5 ns
+edges under discussion); worth remembering when interpreting fine structure of
+simulated calorimeter timing near 1 ns.
+
 ### Environment quirks pinned down during setup (documented for reproducibility)
 
 - MAIAConfig `main` requires a newer `k4ActsTracking` than the v3.0 container ships
