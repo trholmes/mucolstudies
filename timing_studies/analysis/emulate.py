@@ -31,7 +31,14 @@ DIGI_MIN_SCAN = [-0.25, -0.5, -1.0]
 SEL_HALFWIDTH_SCAN = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1.0,
                       1.5, 2.0, 5.0, np.inf]
 SEL_MAX_SCAN = [0.1, 0.15, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, np.inf]
-DT_BINS = np.concatenate([np.arange(-1.0, 3.0, 0.02), np.arange(3.0, 25.0, 0.25)])
+# delta_t binning: fine fixed-width bins across the prompt peak (huge stats),
+# then geometrically widening bins so the falling tail keeps decent stats per
+# bin (width ~17%/bin: ~0.17 ns at 1 ns, ~0.5 ns at 3 ns, ~1.7 ns at 10 ns)
+DT_BINS = np.concatenate([
+    np.arange(-1.0, -0.1, 0.1),      # early side, physically ~empty
+    np.arange(-0.1, 0.5, 0.02),      # prompt peak
+    np.geomspace(0.5, 25.0, 26),     # log-spaced tail
+])
 
 
 class RegionData:
