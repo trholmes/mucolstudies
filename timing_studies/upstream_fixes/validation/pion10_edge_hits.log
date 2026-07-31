@@ -1,0 +1,11 @@
+Explanation of the pion-sample differences: hits within the removed
+~7e-6 ns pseudo-correction of the +0.3 ns selector edge flip decision.
+Stock kept them (t - r/TMath::C() < 0.3 with r in mm, C in m/s);
+patched correctly rejects them (t >= 0.3 ns).
+
+HcalBarrel event 71: hit t = 0.300006866 ns (E = 0.08732 GeV, r = 2236 mm)
+  old pseudo-term r/TMath::C() = 7.46e-06 ns -> stock cut on 0.299999406 < 0.3: kept
+  patched cuts on t itself: 0.300006866 >= 0.3: rejected (correct)
+EcalBarrel event 99: hit t = 0.300002575 ns (E = 0.01140 GeV, r = 1966 mm)
+  old pseudo-term r/TMath::C() = 6.56e-06 ns -> stock cut on 0.299996017 < 0.3: kept
+  patched cuts on t itself: 0.300002575 >= 0.3: rejected (correct)
