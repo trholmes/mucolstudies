@@ -29,6 +29,14 @@ def label_of(stem):
     return f"{m.group(1)} GeV" if m else stem
 
 
+def particle_of(stems):
+    if all("photon" in s for s in stems):
+        return "\u03b3"
+    if all("pion" in s for s in stems):
+        return "\u03c0\u207b"
+    return "mixed"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("results")
@@ -42,7 +50,19 @@ def main():
     fig, axes = plt.subplots(1, n, figsize=(4.1 * n, 3.6), sharey=False)
     if n == 1:
         axes = [axes]
-    bins = np.linspace(0, 1.0001, 21)
+
+    # auto-zoom: if even the tightest window keeps every event above ~0.5,
+    # zoom the x axis to the populated range (e.g. photons in the ECAL);
+    # values below the range are clipped into the first bin
+    lo = 1.0
+    for stem in args.stems:
+        ref = d[f"{stem}__sel_{args.region}__dmin-0.5__dmax100.0__syminf__e"]
+        ok = ref > 0
+        for w in WINDOWS:
+            f = d[f"{stem}__sel_{args.region}__dmin-0.5__dmax10.0__sym{w}__e"][ok] / ref[ok]
+            lo = min(lo, np.percentile(f, 1))
+    xmin = 0.0 if lo < 0.5 else np.floor(lo * 40) / 40
+    bins = np.linspace(xmin, 1.0001, 21)
 
     for ax, stem in zip(axes, args.stems):
         ref = d[f"{stem}__sel_{args.region}__dmin-0.5__dmax100.0__syminf__e"]
@@ -51,14 +71,14 @@ def main():
             f = d[f"{stem}__sel_{args.region}__dmin-0.5__dmax10.0__sym{w}__e"][ok] / ref[ok]
             n0 = int(np.sum(f == 0))
             cur = "  (current)" if abs(w - 0.3) < 1e-9 else ""
-            ax.hist(np.clip(f, 0, 1), bins=bins, histtype="step", lw=1.8, color=c,
+            ax.hist(np.clip(f, xmin, 1), bins=bins, histtype="step", lw=1.8, color=c,
                     label=f"±{w} ns{cur}: med {np.median(f):.2f}, f=0: {n0}")
         ax.set_xlabel("retained fraction f per event")
         ax.set_title(f"{label_of(stem)}  ({int(ok.sum())} events)", fontsize=11)
         ax.legend(fontsize=7.2, loc="upper center", title="selector window", title_fontsize=7.5)
-        ax.set_xlim(0, 1)
+        ax.set_xlim(xmin, 1)
     axes[0].set_ylabel("events / bin")
-    fig.suptitle(f"{args.region}, π⁻: per-event retained energy fraction "
+    fig.suptitle(f"{args.region}, {particle_of(args.stems)}: per-event retained energy fraction "
                  "f = E(window) / E(no timing cuts);  digi window fixed at default (−0.5, +10) ns",
                  fontsize=10.5)
     fig.tight_layout(rect=[0, 0, 1, 0.93])
