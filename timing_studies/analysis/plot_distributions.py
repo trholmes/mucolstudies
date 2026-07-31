@@ -69,8 +69,15 @@ def main():
                 if key not in d or d[key].sum() <= 0:
                     continue
                 found = True
-                h = d[key] / d[key].sum() / widths  # normalized density
-                ax.step(centers, h, where="mid", label=sample_label(stem))
+                total = d[key].sum()
+                h = d[key] / total / widths  # normalized density
+                line, = ax.step(centers, h, where="mid", label=sample_label(stem))
+                key2 = f"{stem}__dthist2_{level}_{region}"
+                if key2 in d:  # statistical error: sqrt(sum of squared weights)
+                    err = np.sqrt(d[key2]) / total / widths
+                    ax.errorbar(centers, h, yerr=err, fmt="none",
+                                ecolor=line.get_color(), elinewidth=0.8,
+                                capsize=0, alpha=0.7)
             if not found:
                 plt.close(fig)
                 continue

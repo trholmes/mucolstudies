@@ -127,20 +127,23 @@ def run_scan(flat, ecal_map, digi_min_scan, digi_max_scan):
         # delta_t histograms at default digi min (energy weighted):
         # contribution level and cell-earliest level
         if abs(cm.DIGI_WINDOW_MIN - (-0.5)) < 1e-9:
-            hw, _ = np.histogram(rd.dt, bins=DT_BINS, weights=rd.e)
-            res[f"dthist_contrib_{region}"] = hw
+            def fill(tag, t, w):
+                # store the weighted histogram and the per-bin sum of squared
+                # weights (-> sqrt(sumw2) statistical error on the bin)
+                res[f"dthist_{tag}_{region}"], _ = np.histogram(
+                    t, bins=DT_BINS, weights=w)
+                res[f"dthist2_{tag}_{region}"], _ = np.histogram(
+                    t, bins=DT_BINS, weights=w * w)
+
+            fill("contrib", rd.dt, rd.e)
             e_win, t_cell, has = windowed_vectorized(
                 rd, cm.DIGI_WINDOW_MIN, cm.DIGI_WINDOW_MAX)
-            hw2, _ = np.histogram(t_cell[has], bins=DT_BINS,
-                                  weights=e_win[has])
-            res[f"dthist_cellearliest_{region}"] = hw2
+            fill("cellearliest", t_cell[has], e_win[has])
             # same cell-earliest construction but with NO digi window at all:
             # cell time = earliest contribution, energy = full cell energy -
             # directly comparable to the contribution-level spectrum
             e_all, t_first, has_all = windowed_vectorized(rd, -np.inf, np.inf)
-            hw3, _ = np.histogram(t_first[has_all], bins=DT_BINS,
-                                  weights=e_all[has_all])
-            res[f"dthist_cellearliest_nodigi_{region}"] = hw3
+            fill("cellearliest_nodigi", t_first[has_all], e_all[has_all])
 
     return res, grids
 
