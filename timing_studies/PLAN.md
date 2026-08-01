@@ -406,3 +406,45 @@ re-weighed against BIB admission):
 The natural follow-up is repeating this with BIB overlay to place the other side of
 the trade-off on the same axes (signal retained vs BIB admitted per window), and a
 theta scan to extend the barrel-only tuning to the endcaps.
+
+### 5.6 A shower-propagation-corrected time variable (dt')
+
+`plots/hcal_pions/dt_vs_r_pion.png` (made by `analysis/shower_speed.py`) shows the
+energy-weighted contribution delta_t vs the cell distance r for pions: the shower
+CORE stays at delta_t ~ 0 at every depth (the median propagates at c), while the
+late quantiles grow ~linearly with r - q75 with slope 0.33 ns/m (v_eff ~ 0.91c)
+and q90 with slope 1.71 ns/m (v_eff ~ 0.66c), each reasonably described by a
+single global line through ECAL and HCAL (only a modest q90 excess right at the
+HCAL front; per-region constants are not obviously needed).
+
+This suggests the simple variable (single constant k, anchor R0 = 1857 mm = ECAL
+barrel front):
+
+    dt' = delta_t - k * max(0, r - R0)
+
+used to relax ONLY the late edge (the early edge must stay on delta_t: prompt
+cores at depth have dt' < 0, so a symmetric dt' window would amputate the core):
+
+    keep cell if   delta_t > -0.3 ns   AND   dt' < w_late
+
+Cell-level retention (per-event median, ECAL+HCAL barrel, thresholds + default
+digi window), same nominal late edge:
+
+| late edge | on delta_t (10/50/200 GeV) | on dt', k=0.33 | on dt', k=1.71 |
+|---|---|---|---|
+| +0.3 ns | 0.718 / 0.806 / 0.857 | 0.785 / 0.847 / 0.906 | 0.867 / 0.920 / 0.949 |
+| +0.5 ns | 0.822 / 0.865 / 0.902 | 0.842 / 0.895 / 0.930 | 0.897 / 0.931 / 0.955 |
+| +1.0 ns | 0.898 / 0.921 / 0.942 | 0.909 / 0.930 / 0.951 | 0.937 / 0.948 / 0.965 |
+
+With k = 1.71 ns/m (q90 slope) the +0.3 ns edge recovers 9-15% of the hadronic
+energy relative to the flat cut and halves the 10-200 GeV response non-linearity
+(1.19 -> 1.09) - comparable to opening the flat window to +1 ns, but without
+touching the calorimeter front where (BIB-era) occupancy is highest. Photons are
+essentially unaffected (their energy sits at small r - R0).
+
+Implementation is a two-line change in `CaloHitSelector` (subtract
+k*max(0, r - R0) before the max-edge comparison; r is already computed there).
+Caveat as always for this no-BIB study: dt' opens the window with depth (up to
++~4 ns at the HCAL rear for k = 1.71), so the BIB it re-admits at depth must be
+checked with overlay before adoption; the depth profile of calo BIB (front-loaded)
+is what makes this variable attractive.
