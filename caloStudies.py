@@ -12,8 +12,8 @@ exec(open("./plotHelper.py").read())
 ROOT.gROOT.SetBatch()
 
 # Set up some options
-max_events = 10
-obj_type = "je"
+max_events = -1
+obj_type = "ph"
 magnetic_field = 5.00
 calibration_mip = 0.0001575
 #calibration_mip_to_reco = 0.00641222630095
@@ -24,12 +24,13 @@ hcal_calibration_mip = 0.0004725
 hcal_calibration_mip_to_reco = 0.024625
 hcal_sampling_scaling = hcal_calibration_mip_to_reco/hcal_calibration_mip
 
-append = "phil"
+append = "calib"
 
 # Set up things for each object
 settings = {
         "fnames": {
-                    "ph": "/data/fmeloni/DataMuC_MAIA_v0/v5/reco/photonGun*",
+                    "ph": "../v2.9.7/reco/1000-photonGun_E_0_50",
+                    #"ph": "/data/fmeloni/DataMuC_MAIA_v0/v5/reco/photonGun*",
                     #"ph": "/data/fmeloni/DataMuC_MAIA_v0/v4/photonGun*",
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/reco/photonGun*",
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/photonGun*",
@@ -100,7 +101,7 @@ def getClusterEta(cluster):
 # This is an algorithmic way of making a bunch of histograms and storing them in a dictionary
 variables = {}
 #variables["pt"] =  {"nbins": 30, "xmin": 0, "xmax": 3000,   "title": "p_{T} [GeV]"}
-variables["E"] =   {"nbins": 50, "xmin": 0, "xmax": 10000,   "title": "E [GeV]"}
+variables["E"] =   {"nbins": 50, "xmin": 0, "xmax": 50,   "title": "E [GeV]"}
 #variables["eta"] = {"nbins": 30, "xmin": -3, "xmax": 3,     "title": "#eta"}
 #variables["phi"] = {"nbins": 30, "xmin": -3.5, "xmax": 3.5, "title": "#phi"}
 #variables["n"] =   {"nbins": 20, "xmin": 0, "xmax": 20,     "title": "n"}

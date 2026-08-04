@@ -14,12 +14,13 @@ ROOT.gROOT.SetBatch()
 # Set up some options
 max_events = -1
 obj_type = "ph"
-append = "240415"
+append = "260305"
 
 # Set up things for each object
 settings = {
         "fnames": {
-                    "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun_E_250_1000*",
+                    "ph": "/data/fmeloni/DataMuC_MAIA_v0/v6/reco/photonGun_E_0_50*",
+                    #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun_E_250_1000*",
                     "mu": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun*",
                     "el": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/electronGun*"},
         "labelname": {  "ph": "Photon",

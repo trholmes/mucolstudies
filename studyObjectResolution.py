@@ -13,7 +13,7 @@ ROOT.gROOT.SetBatch()
 
 # Set up some options
 max_events = 1000
-obj_type = "ne"
+obj_type = "ph"
 magnetic_field = 5.00
 max_E = 50
 calibrate = False
@@ -27,8 +27,10 @@ calibrate = False
 # Set up things for each object
 settings = {
         "fnames": {
+                    #"ph": "../v2.9.7/reco/photonGun_E*",
+                    "ph": "../v2.9.7/reco/1000-photonGun_E_0_50",
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/reco/photonGun_E_0*",
-                    "ph": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/recoBIB/photonGun_E_0*",
+                    #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/v2/recoBIB/photonGun_E_0*",
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/photonGun*",
                     #"ph": "/data/fmeloni/DataMuC_MuColl10_v0A/reco_highrange/photonGun*",
                     "mu": "/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun*",

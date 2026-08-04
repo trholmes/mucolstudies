@@ -1,35 +1,26 @@
 #!/usr/bin/env python3
 """
-Make momentum-distribution plots per PDGID for BIB particles from FLUKA binary input.
+Make momentum-distribution plots per |PDGID| for BIB particles from FLUKA binary input.
 
-Updates in this version:
-  - 1D plots are made PER |PDGID| and OVERLAY +PDG and -PDG contributions
-    (e.g. +13 vs -13 on the same |p| histogram).
-  - For neutrals (where + and - are the same, e.g. 22, 2112), you just get one curve.
-
-Outputs:
-  1) For each selected |PDGID|: 1D overlay histogram of |p| for +pid and -pid
-  2) For each selected |PDGID|: 2D histogram of |p| vs parent muon z (z_mu)
-     (this 2D plot uses BOTH charges together)
+This version:
+  - 1D: overlays +PDG and -PDG for each |PDG|
+  - 2D: |p| vs parent z_mu for each |PDG| (charges combined)
+  - 2D: |p| vs entry radius r for each |PDG| (charges combined)   <-- NEW
 
 Selections:
   - radial cut: keep only particles with r = sqrt(x^2+y^2) >= --r-min
-  - PDG selection:
-      * if --pdg-list given: interpreted as a list of PDGIDs; internally plots by |PDGID|
-      * else: auto-select top-K by COUNT after cuts, grouping by |PDGID|
+  - PDG selection: either --pdg-list or top-K by |PDG| count after cuts
 
 Assumptions:
-  - Record layout matches LINE_DT below
+  - Record layout matches LINE_DT
   - E is kinetic energy [GeV]
-  - Momentum magnitude |p| computed from kinetic energy T and mass m:
-        |p| = sqrt(T^2 + 2 T m)  (c=1)
-  - fid maps to PDGID via bib_pdgs.FLUKA_PIDS
-  - mass is bib_pdgs.PDG_PROPS[pdgid] = (charge, mass)
+  - |p| = sqrt(T^2 + 2 T m), with m from PDG_PROPS (c=1)
+  - fid -> PDGID via FLUKA_PIDS
 
 Examples:
   python plotPdgMomentum_overlay.py /data/.../summary*.dat --outdir pdg_p --r-min 50
-  python plotPdgMomentum_overlay.py file.dat --pdg-list 11 -11 13 -13 22 2112 --r-min 50
-  python plotPdgMomentum_overlay.py file.dat --topk 15 --r-min 100 --z-round 3 --logz
+  python plotPdgMomentum_overlay.py file.dat --topk 15 --r-min 100 --logz
+    python plotPdgMomentum.py /data/fmeloni/FLUKA/summary*.dat
 """
 
 import argparse
@@ -73,9 +64,6 @@ def pdg_abs_tag(pid_abs: int) -> str:
 
 def plot_hist_p_overlay(p_pos, p_neg, outpath: Path, title: str, bins: int, logy: bool,
                         label_pos: str, label_neg: str):
-    """
-    Overlay +pid and -pid 1D |p| histograms. If one side is empty, it simply won't appear.
-    """
     fig, ax = plt.subplots(figsize=(8, 5))
 
     plotted_any = False
@@ -87,7 +75,6 @@ def plot_hist_p_overlay(p_pos, p_neg, outpath: Path, title: str, bins: int, logy
         plotted_any = True
 
     if not plotted_any:
-        # Still write an empty figure with a message
         ax.text(0.5, 0.5, "No entries after cuts", ha="center", va="center", transform=ax.transAxes)
 
     ax.set_xlabel("|p| [GeV/c]")
@@ -102,17 +89,17 @@ def plot_hist_p_overlay(p_pos, p_neg, outpath: Path, title: str, bins: int, logy
     plt.close(fig)
 
 
-def plot_hist2_p_vs_zmu(zmu, p, outpath: Path, title: str,
-                        bins_z: int, bins_p: int, logz: bool):
+def plot_hist2(x, y, xlabel: str, ylabel: str, outpath: Path, title: str,
+               bins_x: int, bins_y: int, logz: bool):
     fig, ax = plt.subplots(figsize=(8, 6))
     if logz:
-        h = ax.hist2d(zmu, p, bins=[bins_z, bins_p], norm=LogNorm(vmin=1))
+        h = ax.hist2d(x, y, bins=[bins_x, bins_y], norm=LogNorm(vmin=1))
         fig.colorbar(h[3], ax=ax, label="BIB particles / bin (log scale)")
     else:
-        h = ax.hist2d(zmu, p, bins=[bins_z, bins_p])
+        h = ax.hist2d(x, y, bins=[bins_x, bins_y])
         fig.colorbar(h[3], ax=ax, label="BIB particles / bin")
-    ax.set_xlabel("Parent muon z_mu [cm]")
-    ax.set_ylabel("|p| [GeV/c]")
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     ax.set_title(title)
     ax.grid(False)
     fig.tight_layout()
@@ -133,8 +120,7 @@ def main():
 
     # PDG selection
     ap.add_argument("--pdg-list", type=int, nargs="+", default=None,
-                    help="Explicit list of PDGIDs to plot; internally grouped by |PDGID| "
-                         "(e.g. --pdg-list 13 or --pdg-list 13 -13 are equivalent)")
+                    help="Explicit list of PDGIDs to plot; internally grouped by |PDGID|")
     ap.add_argument("--topk", type=int, default=20,
                     help="If --pdg-list not provided, plot only top-K |PDGID| by count after cuts (default: 20)")
     ap.add_argument("--min-count", type=int, default=1,
@@ -143,6 +129,7 @@ def main():
     # Plot controls
     ap.add_argument("--bins-p", type=int, default=160, help="Bins for |p| in 1D plots")
     ap.add_argument("--bins-z", type=int, default=200, help="Bins in z_mu for 2D plots")
+    ap.add_argument("--bins-r", type=int, default=200, help="Bins in r for 2D plots")  # NEW
     ap.add_argument("--bins-p2d", type=int, default=200, help="Bins in |p| for 2D plots")
     ap.add_argument("--logy", action="store_true", help="Log-y for 1D histograms")
     ap.add_argument("--logz", action="store_true", help="Log color scale for 2D histograms")
@@ -152,14 +139,13 @@ def main():
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # ---- Pass 1: count PDGs after cuts (grouping by abs(PDG)) unless user gave explicit list ----
-    counts_abs = {}  # abs(pdg) -> count after cuts
+    # ---- Pass 1: count abs(PDG) after cuts (r-min + known-mass) ----
+    counts_abs = {}
     n_read = 0
 
     def process_chunk_for_counts(chunk):
         nonlocal counts_abs
 
-        # r cut
         x = chunk["x"].astype(np.float64)
         y = chunk["y"].astype(np.float64)
         r = np.sqrt(x * x + y * y)
@@ -168,20 +154,17 @@ def main():
             return
 
         sub = chunk[mask]
-
-        # fid -> pdg
         fids = sub["fid"].astype(np.int32)
+
         pdg = np.zeros_like(fids, dtype=np.int32)
         for i, fid in enumerate(fids):
             pdg[i] = FLUKA_PIDS.get(int(fid), 0)
 
-        # keep only PDGs with known mass (so momentum is well-defined)
         known = np.array([int(pid) in PDG_PROPS for pid in pdg], dtype=bool)
         if not np.any(known):
             return
-        pdg = pdg[known]
+        pdg_abs = np.abs(pdg[known])
 
-        pdg_abs = np.abs(pdg)
         uniq, cnt = np.unique(pdg_abs, return_counts=True)
         for u, c in zip(uniq, cnt):
             u = int(u)
@@ -213,7 +196,7 @@ def main():
         items.sort(key=lambda t: t[1], reverse=True)
         pdg_abs_to_plot = [pid_abs for pid_abs, _ in items[:args.topk]]
 
-    # Write a CSV of abs(PDG) counts after cuts
+    # CSV of abs(PDG) counts
     csv_path = outdir / "pdgAbs_counts_after_cuts.csv"
     with open(csv_path, "w") as f:
         f.write("pdg_abs,count_after_cuts\n")
@@ -223,12 +206,15 @@ def main():
     print(f"Wrote: {csv_path}")
     print(f"Selected {len(pdg_abs_to_plot)} |PDGID| to plot:", pdg_abs_to_plot)
 
-    # ---- Pass 2: collect data per abs(PDG), separately for + and - charges (for 1D overlay) ----
-    # For 2D, we’ll combine both charges together in one plot per abs(PDG).
+    # ---- Pass 2: collect data per abs(PDG) ----
     data_p_pos = {pid_abs: [] for pid_abs in pdg_abs_to_plot}
     data_p_neg = {pid_abs: [] for pid_abs in pdg_abs_to_plot}
+
     data_zmu_all = {pid_abs: [] for pid_abs in pdg_abs_to_plot}
     data_p_all = {pid_abs: [] for pid_abs in pdg_abs_to_plot}
+
+    data_r_all = {pid_abs: [] for pid_abs in pdg_abs_to_plot}   # NEW: for p vs r
+    data_p_for_r = {pid_abs: [] for pid_abs in pdg_abs_to_plot}  # NEW: same p array, but keep separate buffers
 
     n_read2 = 0
     abs_set = set(pdg_abs_to_plot)
@@ -242,7 +228,7 @@ def main():
                 if chunk.size > remaining:
                     chunk = chunk[:remaining]
 
-            # r cut
+            # Compute r and apply r-min cut
             x = chunk["x"].astype(np.float64)
             y = chunk["y"].astype(np.float64)
             r = np.sqrt(x * x + y * y)
@@ -252,8 +238,9 @@ def main():
                 continue
 
             sub = chunk[mask]
+            r = r[mask]
 
-            # parent z_mu (optionally rounded)
+            # parent z_mu (optional rounding)
             zmu = sub["z_mu"].astype(np.float64)
             if args.z_round is not None:
                 zmu = np.round(zmu, args.z_round)
@@ -264,13 +251,13 @@ def main():
             for i, fid in enumerate(fids):
                 pdg[i] = FLUKA_PIDS.get(int(fid), 0)
 
-            # keep only PDGs with known mass
             known = np.array([int(pid) in PDG_PROPS for pid in pdg], dtype=bool)
             if not np.any(known):
                 n_read2 += chunk.size
                 continue
 
             sub = sub[known]
+            r = r[known]
             zmu = zmu[known]
             pdg = pdg[known]
 
@@ -281,6 +268,7 @@ def main():
                 continue
 
             sub = sub[sel_abs]
+            r = r[sel_abs]
             zmu = zmu[sel_abs]
             pdg = pdg[sel_abs]
             pdg_abs = pdg_abs[sel_abs]
@@ -294,20 +282,25 @@ def main():
                 pid_abs = int(pid_abs)
                 if pid_abs not in abs_set:
                     continue
+
                 m_abs = (pdg_abs == pid_abs)
                 if not np.any(m_abs):
                     continue
 
-                # For 2D combined:
+                # 2D combined: p vs z_mu
                 data_p_all[pid_abs].append(p_mag[m_abs])
                 data_zmu_all[pid_abs].append(zmu[m_abs])
 
-                # For 1D overlay split by sign:
+                # NEW 2D combined: p vs r
+                data_p_for_r[pid_abs].append(p_mag[m_abs])
+                data_r_all[pid_abs].append(r[m_abs])
+
+                # 1D overlay: split by sign
                 pdg_here = pdg[m_abs]
                 p_here = p_mag[m_abs]
 
-                m_pos = (pdg_here == pid_abs)      # +pid
-                m_neg = (pdg_here == -pid_abs)     # -pid
+                m_pos = (pdg_here == pid_abs)
+                m_neg = (pdg_here == -pid_abs)
 
                 if np.any(m_pos):
                     data_p_pos[pid_abs].append(p_here[m_pos])
@@ -327,6 +320,9 @@ def main():
         p_all = np.concatenate(data_p_all[pid_abs]) if data_p_all[pid_abs] else np.array([], dtype=np.float64)
         zmu_all = np.concatenate(data_zmu_all[pid_abs]) if data_zmu_all[pid_abs] else np.array([], dtype=np.float64)
 
+        p_r = np.concatenate(data_p_for_r[pid_abs]) if data_p_for_r[pid_abs] else np.array([], dtype=np.float64)
+        r_all = np.concatenate(data_r_all[pid_abs]) if data_r_all[pid_abs] else np.array([], dtype=np.float64)
+
         if p_all.size == 0:
             print(f"Skipping |PDG|={pid_abs}: no entries after cuts.")
             continue
@@ -334,7 +330,6 @@ def main():
         base = outdir / pdg_abs_tag(pid_abs)
 
         # 1D overlay (+pid_abs vs -pid_abs)
-        # For neutrals: pid_abs == -pid_abs is not a thing in PDG, but neutrals just populate one side typically.
         title_1d = f"|p| for PDGID ±{pid_abs} (N={p_all.size}, r>={args.r_min} cm)"
         label_pos = f"+{pid_abs} (N={p_pos.size})"
         label_neg = f"-{pid_abs} (N={p_neg.size})"
@@ -350,22 +345,39 @@ def main():
             label_neg=label_neg,
         )
 
-        # 2D combined (both charges together)
-        title_2d = f"|p| vs parent z_mu for PDGID ±{pid_abs} (N={p_all.size}, r>={args.r_min} cm)"
-        plot_hist2_p_vs_zmu(
-            zmu_all,
-            p_all,
+        # 2D combined: p vs z_mu
+        title_2d_z = f"|p| vs parent z_mu for PDGID ±{pid_abs} (N={p_all.size}, r>={args.r_min} cm)"
+        plot_hist2(
+            x=zmu_all,
+            y=p_all,
+            xlabel="Parent muon z_mu [cm]",
+            ylabel="|p| [GeV/c]",
             outpath=Path(str(base) + "_p_vs_zmu.png"),
-            title=title_2d,
-            bins_z=args.bins_z,
-            bins_p=args.bins_p2d,
+            title=title_2d_z,
+            bins_x=args.bins_z,
+            bins_y=args.bins_p2d,
+            logz=args.logz,
+        )
+
+        # NEW 2D combined: p vs r
+        title_2d_r = f"|p| vs entry radius r for PDGID ±{pid_abs} (N={p_r.size}, r>={args.r_min} cm)"
+        plot_hist2(
+            x=r_all,
+            y=p_r,
+            xlabel="Entry radius r = sqrt(x^2+y^2) [cm]",
+            ylabel="|p| [GeV/c]",
+            outpath=Path(str(base) + "_p_vs_r.png"),
+            title=title_2d_r,
+            bins_x=args.bins_r,
+            bins_y=args.bins_p2d,
             logz=args.logz,
         )
 
         print(f"Wrote: {base}_p_overlay.png")
         print(f"Wrote: {base}_p_vs_zmu.png")
+        print(f"Wrote: {base}_p_vs_r.png")
 
-    # Summary text file
+    # Summary
     summary = outdir / "summary.txt"
     with open(summary, "w") as f:
         f.write(f"r_min_cm={args.r_min}\n")
@@ -378,6 +390,7 @@ def main():
             n_pos = sum(arr.size for arr in data_p_pos[pid_abs]) if data_p_pos[pid_abs] else 0
             n_neg = sum(arr.size for arr in data_p_neg[pid_abs]) if data_p_neg[pid_abs] else 0
             f.write(f"{pid_abs},{n_tot},{n_pos},{n_neg}\n")
+
     print(f"Wrote: {summary}")
 
 
