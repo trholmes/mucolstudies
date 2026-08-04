@@ -1,0 +1,14 @@
+comparing 100 events: data/reco/pionGun_E10GeV_th90_n100_s40042_reco_default.edm4hep.root vs data/patched/pionGun_E10GeV_th90_n100_s40042_reco.edm4hep.root
+[EcalBarrel/Digi] n=22611: cellIDs identical=True, max|dE|=0, max|dt|=0 ns
+[EcalBarrel/Rec] n=22611: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 5234/22611
+[EcalBarrel/Coned] n=22481: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 5151/22481
+[EcalBarrel/Sel] HIT COUNT differs: 16472 vs 16471
+[EcalEndcap/Digi] n=30: cellIDs identical=True, max|dE|=0, max|dt|=0 ns
+[EcalEndcap/Rec] n=30: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 29/30
+[HcalBarrel/Digi] n=3632: cellIDs identical=True, max|dE|=0, max|dt|=0 ns
+[HcalBarrel/Rec] n=3632: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 1570/3632
+[HcalBarrel/Coned] n=3597: max|dE|=0, max|dt|=0 ns, stock==trunc(patched)=True, patched-id resolves to a digi id: 1541/3597
+[HcalBarrel/Sel] HIT COUNT differs: 2378 vs 2377
+[PandoraClusters] n=166: max|dE|=0.175 GeV
+[PandoraPFOs] n=166: max|dE|=0.175 GeV
+COMPARISON FAIL (4 differences beyond the intended cellID repair)
